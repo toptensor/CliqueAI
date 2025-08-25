@@ -1,0 +1,12 @@
+starlette>=0.30.0
+pydantic>=2
+rich>=13
+pytest>=8
+numpy>=1
+setuptools>=68
+networkx==3.4.2
+pytest
+substrate-interface
+bittensor>=9.8.2
+bittensor-cli
+httpx
