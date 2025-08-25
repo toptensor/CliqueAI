@@ -1,5 +1,6 @@
 import subprocess
 import traceback
+import time
 
 import bittensor as bt
 
@@ -13,10 +14,6 @@ def run_cmd(*args) -> str:
         return result.stdout.decode().strip()
     except subprocess.CalledProcessError as e:
         raise Exception(f"Command {' '.join(args)} failed: {e.stderr.decode().strip()}")
-
-
-def get_current_branch() -> str:
-    return run_cmd("git", "rev-parse", "--abbrev-ref", "HEAD")
 
 
 def get_local_hash() -> str:
@@ -35,9 +32,8 @@ def update_repo():
 def update_repo_if_needed() -> bool:
     """Returns True if repo was updated and restart is needed, else False."""
     try:
-        current_branch = get_current_branch()
         local_hash = get_local_hash()
-        remote_hash = get_remote_hash(f"origin/{current_branch}")
+        remote_hash = get_remote_hash(f"origin/main")
 
         if local_hash != remote_hash:
             bt.logging.info(f"Update available: {local_hash} -> {remote_hash}")
@@ -52,4 +48,5 @@ def update_repo_if_needed() -> bool:
     except Exception as e:
         bt.logging.error(f"Error checking for updates: {e}")
         bt.logging.error(traceback.format_exc())
+        time.sleep(60) # sleep 1 min
         return True
