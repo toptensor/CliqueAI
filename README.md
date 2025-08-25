@@ -1,4 +1,7 @@
 # CliqueAI
+
+CliqueAI - AI-Powered Maximum Clique Solver Network
+
 ### Miner
 ```
 ./start_miner.sh --wallet.name <coldkey-name> --wallet.hotkey <hotkey-name> --subtensor.network finney --netuid 83 --logging.info --axon.ip <your-miner-ip> --axon.port <your-miner-port>
