@@ -1,4 +1,4 @@
-validator_version = "0.0.0"
+validator_version = "0.0.1"
 version_split = validator_version.split(".")
 version_int_version = (
     (1000 * int(version_split[0]))
