@@ -1,6 +1,6 @@
 # W&B Logging
 
-W&B Dashboard: https://wandb.ai/toptensor-ai/CliqueAI/table?nw=nwusertoptensor
+W&B Dashboard: https://wandb.ai/toptensor-ai/CliqueAI/table
 
 This document describes the data logged by the Maximum Clique Validator to Weights & Biases (W&B) for monitoring, analysis, and debugging purposes.
 
