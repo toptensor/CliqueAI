@@ -37,7 +37,7 @@ with open(path.join(here, "README.md"), encoding="utf-8") as f:
 
 # loading version from setup.py
 with codecs.open(
-    os.path.join(here, "CliqueAI/__init__.py"), encoding="utf-8"
+    os.path.join(here, "common/base/__init__.py"), encoding="utf-8"
 ) as init_file:
     version_match = re.search(
         r"^validator_version = ['\"]([^'\"]*)['\"]", init_file.read(), re.M
@@ -55,14 +55,12 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     author_email="toptensor@toptensor.ai",
-    license="MIT",
     python_requires=">=3.12",
     install_requires=requirements,
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
         "Topic :: Software Development :: Build Tools",
-        "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3.12",
         "Topic :: Scientific/Engineering",
         "Topic :: Scientific/Engineering :: Mathematics",

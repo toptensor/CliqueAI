@@ -4,6 +4,7 @@ import uuid
 import bittensor as bt
 import httpx
 from CliqueAI.graph.model import GraphPayload, LambdaGraph, ValidatorGraphRequest
+from common.base.consts import LAMBDA_URL
 
 
 async def get_graph(
@@ -21,7 +22,7 @@ async def get_graph(
     Args:
         wallet (bt.Wallet): Validator wallet.
     """
-    url = "http://lambda.toptensor.ai/graph/lambda"
+    url = f"{LAMBDA_URL}/graph/lambda"
     payload = GraphPayload(
         timestamp=time.time(),
         hotkey=wallet.hotkey.ss58_address,

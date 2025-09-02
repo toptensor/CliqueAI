@@ -2,16 +2,19 @@ import asyncio
 import copy
 import random
 import time
+import traceback
+from collections import defaultdict
 
 import aiohttp
 import bittensor as bt
-from CliqueAI import validator_version, version_int_version
+from CliqueAI.chain.snapshot import Snapshot
 from CliqueAI.graph.client import get_graph
 from CliqueAI.protocol import MaximumCliqueOfLambdaGraph
 from CliqueAI.scoring.clique_scoring import CliqueScoreCalculator
 from CliqueAI.selection.miner_selector import MinerSelector
 from CliqueAI.selection.problem_selector import ProblemSelector
 from CliqueAI.transport.axon_requester import AxonRequester
+from common.base import validator_int_version, validator_version
 from common.base.validator import BaseValidatorNeuron
 from common.base.wandb_logging.model import WandbRunLogData
 
@@ -28,14 +31,14 @@ class Validator(BaseValidatorNeuron):
     validator_version = validator_version
 
     def __init__(self, config=None):
-        super(Validator, self).__init__(config=config)
+        super().__init__(config=config)
 
         if not self.config.wandb.off:
             self.wandb_client.init(version=self.validator_version)
 
         self.forward_interval = self.config.forward.interval
-        self.spec_version = version_int_version
         self.owner_hotkey = None
+        self.snapshot = None
 
     def get_owner_hotkey(self):
         if self.owner_hotkey is None:
@@ -45,19 +48,65 @@ class Validator(BaseValidatorNeuron):
         bt.logging.info(f"Owner hotkey: {self.owner_hotkey}")
         return self.owner_hotkey
 
+    def resync_metagraph(self):
+        super().resync_metagraph()
+        try:
+            snapshot_time = time.time()
+            coldkeys = [
+                self.subtensor.get_hotkey_owner(hotkey) for hotkey in self.hotkeys
+            ]
+            coldkey_to_hotkey_count = defaultdict(int)
+            for coldkey in coldkeys:
+                coldkey_to_hotkey_count[coldkey] += 1
+
+            coldkey_to_stake_on_owner = {}
+            for coldkey in set(coldkeys):
+                try:
+                    coldkey_to_stake_on_owner[coldkey] = self.subtensor.get_stake(
+                        coldkey, self.owner_hotkey, netuid=self.config.netuid
+                    ).rao
+                except Exception as e:
+                    coldkey_to_stake_on_owner[coldkey] = 0
+                    continue
+
+            stakes_on_owner_validator = [
+                coldkey_to_stake_on_owner[ck] / coldkey_to_hotkey_count[ck]
+                for ck in coldkeys
+            ]
+            self.snapshot = Snapshot(
+                netuid=self.config.netuid,
+                epoch_length=self.config.neuron.epoch_length,
+                block=self.block,
+                owner_hotkey=self.get_owner_hotkey(),
+                metagraph=self.metagraph,
+                hotkeys=self.hotkeys,
+                coldkeys=coldkeys,
+                alpha_stakes=self.metagraph.alpha_stake,
+                stakes_on_owner_validator=stakes_on_owner_validator,
+            )
+            bt.logging.info(
+                f"Snapshot resync completed in {time.time() - snapshot_time} seconds"
+            )
+        except Exception as e:
+            bt.logging.error(traceback.format_exc())
+            bt.logging.error(f"Error during snapshot resync: {e}")
+            self.snapshot = None
+
     async def forward(self):
         start_time = time.time()
         bt.logging.info(f"Validator forward started at {start_time}")
 
+        if self.snapshot is None:
+            bt.logging.warning("Snapshot is None. Skipping forward.")
+            await asyncio.sleep(30)
+            self.resync_metagraph()
+            return
+
         miner_selector = MinerSelector(
-            subtensor=self.subtensor,
-            metagraph=self.metagraph,
-            epoch_length=self.config.neuron.epoch_length,
-            owner_hotkey=self.get_owner_hotkey(),
-            netuid=self.config.netuid,
+            current_block=self.block,
+            snapshot=self.snapshot,
         )
         problem_selector = ProblemSelector(
-            metagraph=self.metagraph,
             miner_selector=miner_selector,
         )
 
@@ -105,14 +154,7 @@ class Validator(BaseValidatorNeuron):
         bt.logging.info(f"Synapse UUID: {synapse.uuid}")
 
         # Miner Selection
-        selector = MinerSelector(
-            subtensor=self.subtensor,
-            metagraph=self.metagraph,
-            epoch_length=self.config.neuron.epoch_length,
-            owner_hotkey=self.get_owner_hotkey(),
-            netuid=self.config.netuid,
-        )
-        selected_uids = selector.sample_miner_uids(difficulty=problem.difficulty)
+        selected_uids = miner_selector.sample_miner_uids(difficulty=problem.difficulty)
         bt.logging.info(f"Selected UIDs: {selected_uids}")
         axons = [self.metagraph.axons[uid] for uid in selected_uids]
 
@@ -155,10 +197,12 @@ class Validator(BaseValidatorNeuron):
         self.update_scores(rewards, selected_uids)
 
         if not self.config.wandb.off and len(selected_uids) > 0:
-            miner_hotheys, miner_coldkeys = map(
-                list,
-                zip(*[selector.get_miner_keys_by_uid(uid) for uid in selected_uids]),
-            )
+            selected_miner_hotkeys = [
+                self.snapshot.hotkeys[uid] for uid in selected_uids
+            ]
+            selected_miner_coldkeys = [
+                self.snapshot.coldkeys[uid] for uid in selected_uids
+            ]
 
             self.wandb_client.log(
                 WandbRunLogData(
@@ -170,8 +214,8 @@ class Validator(BaseValidatorNeuron):
                     number_of_nodes=synapse.number_of_nodes,
                     adjacency_list=synapse.adjacency_list,
                     miner_uids=selected_uids,
-                    miner_hotkeys=miner_hotheys,
-                    miner_coldkeys=miner_coldkeys,
+                    miner_hotkeys=selected_miner_hotkeys,
+                    miner_coldkeys=selected_miner_coldkeys,
                     miner_ans=responses,
                     miner_rel=rel,
                     miner_pr=pr,

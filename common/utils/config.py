@@ -157,7 +157,6 @@ def add_validator_args(cls, parser):
 
     parser.add_argument(
         "--neuron.axon_off",
-        "--axon_off",
         action="store_true",
         help="Set this flag to not attempt to serve an Axon.",
         default=False,

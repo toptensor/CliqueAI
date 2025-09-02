@@ -8,6 +8,7 @@ from typing import List, Union
 
 import bittensor as bt
 import numpy as np
+from common.base import validator_int_version
 from common.base.middleware.bypass_axon_middleware import replace_axon_middleware
 from common.base.neuron import BaseNeuron
 from common.base.utils.signature import verify_signature
@@ -52,19 +53,10 @@ class BaseValidatorNeuron(BaseNeuron):
         bt.logging.info("load_state()")
         self.load_state()
 
-        # Init sync with the network. Updates the metagraph.
-        self.sync()
-
         self.axon = bt.axon(
             wallet=self.wallet,
             config=self.config() if callable(self.config) else self.config,
         )
-
-        # Serve axon to enable external connections.
-        if not self.config.neuron.axon_off:
-            self.serve_axon()
-        else:
-            bt.logging.warning("axon off, not serving ip to chain.")
 
         # Create asyncio event loop to manage async tasks.
         self.loop = asyncio.get_event_loop()
@@ -88,6 +80,9 @@ class BaseValidatorNeuron(BaseNeuron):
             self.axon = bt.axon(wallet=self.wallet, config=self.config)
 
             try:
+                bt.logging.info(
+                    f"Serving validator axon {self.axon} on network: {self.config.subtensor.chain_endpoint} with netuid: {self.config.netuid}"
+                )
                 self.subtensor.serve_axon(
                     netuid=self.config.netuid,
                     axon=self.axon,
@@ -148,14 +143,14 @@ class BaseValidatorNeuron(BaseNeuron):
 
         # Check that validator is registered on the network.
         self.sync()
+        self.resync_metagraph()  # update snapshot
 
-        bt.logging.info(
-            f"Serving validator axon {self.axon} on network: {self.config.subtensor.chain_endpoint} with netuid: {self.config.netuid}"
-        )
-        self.axon.serve(netuid=self.config.netuid, subtensor=self.subtensor)
-
-        # Start the validator's axon, making it active on the network.
-        self.axon.start()
+        # Serve axon to enable external connections.
+        if not self.config.neuron.axon_off:
+            self.serve_axon()
+            self.axon.start()
+        else:
+            bt.logging.warning("axon off, not serving ip to chain.")
 
         bt.logging.info(f"Validator starting at block: {self.block}")
 
@@ -165,7 +160,8 @@ class BaseValidatorNeuron(BaseNeuron):
                 bt.logging.info(f"step({self.step}) block({self.block})")
 
                 # Run multiple forwards concurrently.
-                self.loop.run_until_complete(self.concurrent_forward())
+                if not self.should_exit:
+                    self.loop.run_until_complete(self.concurrent_forward())
 
                 # Check autoupdate status.
                 if self.config.neuron.autoupdate:
@@ -281,9 +277,9 @@ class BaseValidatorNeuron(BaseNeuron):
             netuid=self.config.netuid,
             uids=uids,
             weights=weights,
-            wait_for_finalization=False,
-            wait_for_inclusion=False,
-            version_key=self.spec_version,
+            wait_for_finalization=True,
+            wait_for_inclusion=True,
+            version_key=validator_int_version,
         )
         if result is True:
             self.last_set_weight = self.block
@@ -293,17 +289,8 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def resync_metagraph(self):
         """Resyncs the metagraph and updates the hotkeys and moving averages based on the new metagraph."""
-        # bt.logging.info("resync_metagraph()")
-
-        # Copies state of metagraph before syncing.
-        previous_metagraph = copy.deepcopy(self.metagraph)
-
         # Sync the metagraph.
         self.metagraph.sync(subtensor=self.subtensor)
-
-        # Check if the metagraph axon info has changed.
-        if previous_metagraph.axons == self.metagraph.axons:
-            return
 
         bt.logging.info(
             "Metagraph updated, re-syncing hotkeys, dendrite pool and moving averages"
@@ -381,8 +368,12 @@ class BaseValidatorNeuron(BaseNeuron):
             alpha * rewards + (1 - alpha) * self.ema_scores[uids_array]
         )
         correction = 1 - np.power(1 - alpha, self.ema_step_count)
-        self.scores = self.ema_scores / correction
-        self.scores = np.nan_to_num(self.scores, nan=0.0)
+        self.scores = np.divide(
+            self.ema_scores,
+            correction,
+            out=np.zeros_like(self.ema_scores),
+            where=correction != 0,
+        )
         bt.logging.debug(f"Updated EMA scores: {self.scores}")
 
     def save_state(self):

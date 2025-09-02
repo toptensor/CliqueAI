@@ -1,98 +1,35 @@
-from collections import defaultdict
-
 import numpy as np
-from bittensor import Metagraph, Subtensor
+from CliqueAI.chain.snapshot import Snapshot
 
 
 class MinerSelector:
     def __init__(
         self,
-        subtensor: Subtensor,
-        metagraph: Metagraph,
-        epoch_length: int,
-        owner_hotkey: str,
-        netuid: int,
+        current_block: int,
+        snapshot: Snapshot,
     ):
-        self.subtensor = subtensor
-        self.metagraph = metagraph
-        self.epoch_length = epoch_length
-        self.owner_hotkey = owner_hotkey
-        self.netuid = netuid
-        self.miner_uids = self.filter_validators()
-        self.hotkeys = None
-        self.coldkeys = None
+        self.current_block = current_block
+        self.snapshot = snapshot
         self.miner_weights_cache = {}  # difficulty -> weights mapping
+        self.miner_uids = self._filter_validators()
 
-    def get_miner_hotkeys(self) -> list[str]:
+    def _filter_validators(self) -> list[int]:
         """
-        Get the hotkeys of the miners.
+        Filter out uids that are validators in the metagraph.
         """
-        if self.hotkeys is None:
-            self.hotkeys = [self.metagraph.hotkeys[uid] for uid in self.miner_uids]
-        return self.hotkeys
+        uids = []
+        for uid in range(self.snapshot.metagraph.n):
+            if self.snapshot.metagraph.validator_trust[uid] > 0:
+                continue
 
-    def get_miner_coldkeys(self) -> list[str]:
-        """
-        Get the coldkeys of the miners.
-        """
-        if self.coldkeys is None:
-            self.coldkeys = [
-                self.subtensor.get_hotkey_owner(hotkey)
-                for hotkey in self.get_miner_hotkeys()
-            ]
-        return self.coldkeys
+            if (
+                self.current_block - self.snapshot.metagraph.last_update[uid]
+                <= self.snapshot.epoch_length
+            ):
+                continue
 
-    def get_miner_keys_by_uid(self, uid: int) -> tuple[str, str]:
-        """
-        Get the hotkey and coldkey of a miner by UID.
-        """
-        if uid not in self.miner_uids:
-            raise ValueError(f"UID {uid} is not a valid miner UID.")
-        index = self.miner_uids.index(uid)
-        return self.hotkeys[index], self.coldkeys[index]
-
-    def filter_validators(self) -> list[int]:
-        """
-        Filter out uids that are active in the metagraph.
-        """
-        current_block = self.subtensor.get_current_block()
-        return [
-            uid
-            for uid in range(self.metagraph.n)
-            if (current_block - self.metagraph.last_update[uid]) > self.epoch_length
-        ]
-
-    def stake_weight(self, coldkeys: list[str]) -> np.ndarray:
-        """
-        Calculate the stake weight for each hotkey based on the stakes on the owner and miner.
-
-        Args:
-            coldkeys (list[str]): List of coldkeys to calculate stake weights for.
-
-        Returns:
-            np.ndarray: An array of stake weights for each hotkey.
-        """
-        coldkey_to_hotkey_count = defaultdict(int)
-        for coldkey in coldkeys:
-            coldkey_to_hotkey_count[coldkey] += 1
-
-        coldkey_to_owner_stake = {
-            ck: self.subtensor.get_stake(ck, self.owner_hotkey, netuid=self.netuid).rao
-            for ck in set(coldkeys)
-        }
-        stake_on_miner = np.array(
-            self.metagraph.alpha_stake[self.miner_uids], dtype=float
-        )
-
-        weights = np.array(
-            [
-                stake_on_miner[i]
-                + coldkey_to_owner_stake[ck] / coldkey_to_hotkey_count[ck]
-                for i, ck in enumerate(coldkeys)
-            ],
-            dtype=float,
-        )
-        return weights
+            uids.append(uid)
+        return uids
 
     def miner_weights(self, difficulty: float) -> np.ndarray:
         """
@@ -107,11 +44,12 @@ class MinerSelector:
         if difficulty in self.miner_weights_cache:
             return self.miner_weights_cache[difficulty]
 
-        hotkeys = self.get_miner_hotkeys()
-        coldkeys = self.get_miner_coldkeys()
-
-        s_m = self.stake_weight(coldkeys)
-        S = sum(s_m) / len(hotkeys)
+        s_m = [
+            self.snapshot.alpha_stakes[uid]
+            + self.snapshot.stakes_on_owner_validator[uid]
+            for uid in self.miner_uids
+        ]
+        S = sum(s_m) / len(self.miner_uids)
         if S == 0:
             x_m = np.array([1] * len(self.miner_uids))
         else:

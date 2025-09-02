@@ -17,6 +17,9 @@ Dual-metric evaluation system assesses both solution optimality and algorithmic 
 ### Weight Setting
 Exponential moving average algorithms continuously adjust miner reputation scores. Historical performance data influences future problem allocation and reward distribution.
 
+## Documentation
+- [Mechanism](docs/mechanism.md) – Detailed explanation of our mechanism.
+- [W&B Logging](docs/wandb_logging.md) – Data logging schema for monitoring, analysis, and debugging via Weights & Biases.
 
 ## Getting Started
 ### Miner

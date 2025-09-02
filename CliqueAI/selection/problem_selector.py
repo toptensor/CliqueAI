@@ -1,10 +1,7 @@
 import random
-import sys
 
-from bittensor import Metagraph
+from CliqueAI.selection.miner_selector import MinerSelector
 from pydantic import BaseModel
-
-from .miner_selector import MinerSelector
 
 max_int = 1e9
 
@@ -44,8 +41,7 @@ PROBLEMS = [
 
 
 class ProblemSelector:
-    def __init__(self, metagraph: Metagraph, miner_selector: MinerSelector):
-        self.metagraph = metagraph
+    def __init__(self, miner_selector: MinerSelector):
         self.miner_selector = miner_selector
 
     def select_problem(self):

@@ -7,6 +7,6 @@ setuptools>=68
 networkx==3.4.2
 pytest
 substrate-interface
-bittensor>=9.8.2
+bittensor>=9.10.0
 bittensor-cli
 httpx

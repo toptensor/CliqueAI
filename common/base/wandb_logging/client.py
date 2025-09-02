@@ -2,8 +2,8 @@ import time
 
 import httpx
 from bittensor import Wallet
-
-from .model import (
+from common.base.consts import LAMBDA_URL
+from common.base.wandb_logging.model import (
     WandbRunInitPayload,
     WandbRunInitRequest,
     WandbRunInitResponse,
@@ -13,21 +13,19 @@ from .model import (
     WandbRunLogResponse,
 )
 
-URL = "http://lambda.toptensor.ai"
-
 
 class WandbClient:
-    def __init__(self, wallet: Wallet, base_version: int, netuid: int):
+    def __init__(self, wallet: Wallet, base_version: str, netuid: int):
         self.wallet = wallet
         self.netuid = netuid
         self.hotkey = wallet.hotkey.ss58_address
         self.base_version = str(base_version)
-        self.client = httpx.Client(base_url=URL)
+        self.client = httpx.Client(base_url=LAMBDA_URL)
         self.key = wallet.hotkey
         self.run_id = None
         self.validator_version = None
 
-    def init(self, version: int) -> WandbRunInitResponse:
+    def init(self, version: str) -> WandbRunInitResponse:
         self.validator_version = str(version)
         payload = WandbRunInitPayload(
             timestamp=time.time(),
