@@ -20,7 +20,7 @@ class WandbClient:
         self.netuid = netuid
         self.hotkey = wallet.hotkey.ss58_address
         self.base_version = str(base_version)
-        self.client = httpx.Client(base_url=LAMBDA_URL)
+        self.client = httpx.Client(base_url=LAMBDA_URL, timeout=httpx.Timeout(60))
         self.key = wallet.hotkey
         self.run_id = None
         self.validator_version = None

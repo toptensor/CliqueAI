@@ -39,7 +39,7 @@ async def get_graph(
         payload=payload,
         signature=signature,
     )
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(60)) as client:
         response = await client.post(url, json=body.model_dump())
         response.raise_for_status()
         return LambdaGraph.model_validate(response.json())
