@@ -1,5 +1,5 @@
-base_version = "0.0.1"
-validator_version = "0.0.2"
+base_version = "0.0.3"
+validator_version = "0.0.3"
 
 
 def _version_to_int(version_str: str) -> int:
