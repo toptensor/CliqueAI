@@ -64,7 +64,7 @@ class Validator(BaseValidatorNeuron):
                 try:
                     coldkey_to_stake_on_owner[coldkey] = self.subtensor.get_stake(
                         coldkey, self.get_owner_hotkey(), netuid=self.config.netuid
-                    ).rao
+                    ).tao
                 except Exception as e:
                     coldkey_to_stake_on_owner[coldkey] = 0
                     continue
