@@ -18,6 +18,7 @@ class WandbRunLogData(BaseModel):
     difficulty: float
     number_of_nodes: int
     adjacency_list: list
+    encoded_matrix: str
     miner_uids: list
     miner_hotkeys: list
     miner_coldkeys: list

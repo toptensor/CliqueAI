@@ -9,6 +9,7 @@ import aiohttp
 import bittensor as bt
 from CliqueAI.chain.snapshot import Snapshot
 from CliqueAI.graph.client import get_graph
+from CliqueAI.graph.codec import GraphCodec
 from CliqueAI.protocol import MaximumCliqueOfLambdaGraph
 from CliqueAI.scoring.clique_scoring import CliqueScoreCalculator
 from CliqueAI.selection.miner_selector import MinerSelector
@@ -109,6 +110,7 @@ class Validator(BaseValidatorNeuron):
         problem_selector = ProblemSelector(
             miner_selector=miner_selector,
         )
+        graph_codec = GraphCodec()
 
         # Problem Selection
         problem = problem_selector.select_problem()
@@ -143,12 +145,21 @@ class Validator(BaseValidatorNeuron):
             new_adjacency_list[new_u] = sorted(mapped_neighbors)
         graph.adjacency_list = new_adjacency_list
 
+        # Encode the graph
+        adj_matrix = graph_codec.list_to_matrix(
+            graph.adjacency_list, graph.number_of_nodes
+        )
+        encoded_matrix = graph_codec.encode_matrix(
+            adj_matrix
+        )
+
         # Synapse
         synapse = MaximumCliqueOfLambdaGraph(
             uuid=graph.uuid,
             label=graph.label,
             number_of_nodes=graph.number_of_nodes,
             adjacency_list=graph.adjacency_list,
+            encoded_matrix=encoded_matrix,
             timeout=self.config.forward.timeout,
         )
         bt.logging.info(f"Synapse UUID: {synapse.uuid}")
@@ -213,6 +224,7 @@ class Validator(BaseValidatorNeuron):
                     difficulty=problem.difficulty,
                     number_of_nodes=synapse.number_of_nodes,
                     adjacency_list=synapse.adjacency_list,
+                    encoded_matrix=synapse.encoded_matrix,
                     miner_uids=selected_uids,
                     miner_hotkeys=selected_miner_hotkeys,
                     miner_coldkeys=selected_miner_coldkeys,
