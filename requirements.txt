@@ -2,7 +2,7 @@ starlette>=0.30.0
 pydantic>=2
 rich>=13
 pytest>=8
-numpy>=1
+numpy>=2.2.6
 setuptools>=68
 networkx==3.4.2
 pytest
@@ -10,3 +10,8 @@ substrate-interface
 bittensor>=9.10.0
 bittensor-cli
 httpx
+scipy==1.15.3
+PyYAML==6.0.2
+torch==2.7.1
+torch-geometric==2.6.1
+igraph

@@ -2,7 +2,7 @@ import time
 import typing
 
 import bittensor as bt
-import networkx as nx
+from CliqueAI.clique_algorithms import networkx_algorithm, scattering_clique_algorithm
 from CliqueAI.protocol import MaximumCliqueOfLambdaGraph
 from common.base.miner import BaseMinerNeuron
 
@@ -27,11 +27,9 @@ class Miner(BaseMinerNeuron):
     async def forward_graph(
         self, synapse: MaximumCliqueOfLambdaGraph
     ) -> MaximumCliqueOfLambdaGraph:
-        number_of_nodes = synapse.number_of_nodes
-        adjacency_list = synapse.adjacency_list
-        dict_of_lists = {i: adjacency_list[i] for i in range(number_of_nodes)}
-        graph = nx.from_dict_of_lists(dict_of_lists)
-        maximum_clique = nx.approximation.max_clique(graph)
+        maximum_clique: list[int] = networkx_algorithm(synapse)
+        # or use GNN models
+        # maximum_clique = scattering_clique_algorithm(synapse)
         bt.logging.info(
             f"Maximum clique found: {maximum_clique} with size {len(maximum_clique)}"
         )
