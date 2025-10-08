@@ -1,0 +1,49 @@
+{
+    "name": "MaximumCliqueOfLambdaGraph",
+    "timeout": 30.0,
+    "total_size": 0,
+    "header_size": 0,
+    "dendrite": {
+        "status_code": null,
+        "status_message": null,
+        "process_time": null,
+        "ip": null,
+        "port": null,
+        "version": null,
+        "nonce": null,
+        "uuid": null,
+        "hotkey": null,
+        "signature": null
+    },
+    "axon": {
+        "status_code": null,
+        "status_message": null,
+        "process_time": null,
+        "ip": null,
+        "port": null,
+        "version": null,
+        "nonce": null,
+        "uuid": null,
+        "hotkey": null,
+        "signature": null
+    },
+    "computed_body_hash": "",
+    "uuid": "5ce9af7e-test-test-test-ff139214dcfe",
+    "label": "general",
+    "number_of_nodes": 3,
+    "adjacency_list": [
+        [
+            1,
+            2
+        ],
+        [
+            0,
+            2
+        ],
+        [
+            0,
+            1
+        ]
+    ],
+    "maximum_clique": []
+}
