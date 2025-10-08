@@ -37,7 +37,6 @@ class Miner(BaseMinerNeuron):
         bt.logging.info(
             f"Maximum clique found: {maximum_clique} with size {len(maximum_clique)}"
         )
-        synapse.adjacency_list = [[]]  # Clear up the adjacency list to reduce response size.
         synapse.maximum_clique = maximum_clique
         return synapse
 
