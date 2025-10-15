@@ -1,0 +1,68 @@
+import scipy.sparse as sp
+import torch
+
+from .utils import sparse_mx_to_torch_sparse_tensor
+
+
+def GCN_diffusion(sptensor, order, feature, device="cuda"):
+    """
+    Creating a normalized adjacency matrix with self loops.
+    sptensor = W
+    """
+    I_n = sp.eye(sptensor.size(0))
+    I_n = sparse_mx_to_torch_sparse_tensor(I_n).to(device)
+    A_gcn = sptensor + I_n
+    degrees = torch.sparse.sum(A_gcn, 0).to(device)
+    D = degrees
+    D = D.to_dense()
+    D = torch.pow(D, -0.5)
+    D = D.unsqueeze(dim=1).to(device)
+    gcn_diffusion_list = []
+    A_gcn_feature = feature
+    for i in range(order):
+        A_gcn_feature = torch.mul(A_gcn_feature, D)
+        A_gcn_feature = torch.spmm(A_gcn, A_gcn_feature)
+        A_gcn_feature = torch.mul(A_gcn_feature, D)
+        gcn_diffusion_list += [
+            A_gcn_feature,
+        ]
+    return gcn_diffusion_list
+
+
+def scattering_diffusion(sptensor, feature, device="cuda"):
+    """
+    A_tilte,adj_p,shape(N,N)
+    feature:shape(N,3) :torch.FloatTensor
+    all on cuda
+    """
+
+    h_sct1, h_sct2, h_sct3 = SCT1stv2(sptensor, 3, feature, device)
+
+    return h_sct1, h_sct2, h_sct3
+
+
+def SCT1stv2(sptensor, order, feature, device="cuda"):
+    """
+    sptensor = W
+    """
+    degrees = torch.sparse.sum(sptensor, 0).to(device)
+    D = degrees
+    D = D.to_dense().to(device)
+    D = torch.pow(D, -1)
+    D = D.unsqueeze(dim=1)
+    iteration = 2**order
+    scale_list = list(2**i - 1 for i in range(order + 1))
+    feature_p = feature
+    sct_diffusion_list = []
+    for i in range(iteration):
+        D_inv_x = D * feature_p
+        W_D_inv_x = torch.spmm(sptensor, D_inv_x)
+        feature_p = 0.5 * feature_p + 0.5 * W_D_inv_x
+        if i in scale_list:
+            sct_diffusion_list += [
+                feature_p,
+            ]
+    sct_feature1 = sct_diffusion_list[0] - sct_diffusion_list[1]
+    sct_feature2 = sct_diffusion_list[1] - sct_diffusion_list[2]
+    sct_feature3 = sct_diffusion_list[2] - sct_diffusion_list[3]
+    return sct_feature1, sct_feature2, sct_feature3
