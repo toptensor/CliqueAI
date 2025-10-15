@@ -3,7 +3,7 @@ from CliqueAI.protocol import MaximumCliqueOfLambdaGraph
 from .gnn_models import SC_MODEL
 
 
-def scattering_clique_algorithm(synapse: MaximumCliqueOfLambdaGraph):
+def scattering_clique_algorithm(number_of_nodes: int, adjacency_list: list[list[int]]) -> list[int]:
     def extend_to_maximal_clique(
         adjacency_list: list[list[int]], clique: list[int]
     ) -> list[int]:
@@ -22,8 +22,8 @@ def scattering_clique_algorithm(synapse: MaximumCliqueOfLambdaGraph):
                     break
         return list(clique_set)
 
-    num_nodes = synapse.number_of_nodes
-    adjacency_list = synapse.adjacency_list
+    num_nodes = number_of_nodes
+    adjacency_list = adjacency_list
     maximum_clique: list[int] = []
     for clique in SC_MODEL.predict_iter(num_nodes, adjacency_list):
         clique = extend_to_maximal_clique(adjacency_list, list(map(int, clique)))
