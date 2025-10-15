@@ -21,11 +21,6 @@ class MaximumCliqueOfLambdaGraph(bt.Synapse):
         description="The number of nodes in the graph.",
         default=0,
     )
-    adjacency_list: typing.List[typing.List[int]] = Field(
-        title="adjacency_list",
-        description="The adjacency list of the graph.",
-        default=[],
-    )
     encoded_matrix: str = Field(
         title="encoded_matrix",
         description="The base92 encoded adjacency matrix of the graph.",
