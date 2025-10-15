@@ -63,8 +63,8 @@ class Validator(BaseValidatorNeuron):
             for coldkey in set(coldkeys):
                 try:
                     coldkey_to_stake_on_owner[coldkey] = self.subtensor.get_stake(
-                        coldkey, self.owner_hotkey, netuid=self.config.netuid
-                    ).rao
+                        coldkey, self.get_owner_hotkey(), netuid=self.config.netuid
+                    ).tao
                 except Exception as e:
                     coldkey_to_stake_on_owner[coldkey] = 0
                     continue
