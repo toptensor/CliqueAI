@@ -2,6 +2,7 @@ import json
 
 from CliqueAI.clique_algorithms import (networkx_algorithm,
                                         scattering_clique_algorithm)
+from CliqueAI.graph.codec import GraphCodec
 from CliqueAI.protocol import MaximumCliqueOfLambdaGraph
 
 data_paths = [
@@ -34,8 +35,11 @@ def check_clique(adjacency_list: list[list[int]], clique: list[int]) -> bool:
 
 
 def run(algorithm, synapse: MaximumCliqueOfLambdaGraph):
-    maximum_clique = algorithm(synapse)
-    clique_check = check_clique(synapse.adjacency_list, maximum_clique)
+    codec = GraphCodec()
+    adjacency_matrix = codec.decode_matrix(synapse.encoded_matrix)
+    adjacency_list = codec.matrix_to_list(adjacency_matrix)
+    maximum_clique = algorithm(synapse.number_of_nodes, adjacency_list)
+    clique_check = check_clique(adjacency_list, maximum_clique)
     if not clique_check:
         print("Invalid clique found by algorithm!")
     else:
