@@ -40,13 +40,14 @@ We evaluate difficulty level, $d(p)$, of each problem on a scale from 0 to 1 usi
 
 We continuously refine this formula based on miner performance and internal experiments to make it more accurate.
 
-### Latest (since 2025/08/25)
+### Latest
 
-Currently, we have only 3 types of problems:
+Currently, we have only 4 types of problems:
 
 -   Easy (difficulty=0.1): general graph with $90≤|V|≤100$
 -   Medium (difficulty=0.2): general graph with $290≤|V|≤300$
--   Hard (difficulty=0.4): general graph with $490≤|V|≤500$
+-   Hard (difficulty=0.3): general graph with $490≤|V|≤500$
+-   Very Hard (difficulty=0.4): general graph with $690≤|V|≤700$
 
 ## Selection Process
 
@@ -54,22 +55,8 @@ The validator determines the problem type, then selects one problem of that type
 
 ### Type Selection
 
-The validator tends to assign difficult problems to experienced miners (explained in the next section). This approach creates these outcomes:
-
--   Harder problems are distributed to fewer miners.
--   New miners receive many easy problems but very few hard problems.
-
-However, this can lead to a pooling equilibrium. Outstanding new miners may find it extremely difficult to prove themselves because they receive ZERO hard problems to distinguish themselves from other new miners.
-
-To address this issue, we boost the appearance of hard problems so new miners have higher chances to receive harder problems to showcase their abilities.
-
-A problem with type $t$ has appearance probability, $A(t)$, inversely proportional to its expected number of selected miners. This is determined by its difficulty level, $d(t)$, and current miner experience levels, $x(m)$ (explained in the next section).
-
-$$ A'(t)=\frac{1}{\sum\limits_{m\in M}{1 - e^{-max(0, x(m)-d(t)-0.5)}}} $$
-
-$$ A(t) = \frac{A'(t)}{\sum\limits_{u\in T}{A'(u)}} $$
-
-where $M$ is the set of all miners and $T$ is the set of all problem types.
+For a set of problem types \(T\), each type is selected with equal probability:
+$${A(t)=\frac{1}{|T|},\quad \forall\, t\in T}$$
 
 ### Problem Selection
 

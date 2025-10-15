@@ -35,8 +35,14 @@ PROBLEMS = [
         label="general",
         vertex_range=Range(min=490, max=500),
         edge_range=Range(min=0, max=max_int),
-        difficulty=0.4,
+        difficulty=0.3,
     ),
+    Problem(
+        label="general",
+        vertex_range=Range(min=690, max=700),
+        edge_range=Range(min=0, max=max_int),
+        difficulty=0.4,
+    )
 ]
 
 
@@ -45,9 +51,5 @@ class ProblemSelector:
         self.miner_selector = miner_selector
 
     def select_problem(self):
-        weights = [
-            1 / sum(w)
-            for w in [self.miner_selector.miner_weights(p.difficulty) for p in PROBLEMS]
-        ]
-        selected_problem = random.choices(PROBLEMS, weights=weights, k=1)[0]
+        selected_problem = random.choice(PROBLEMS)
         return selected_problem
