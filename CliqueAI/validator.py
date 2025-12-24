@@ -223,7 +223,7 @@ class Validator(BaseValidatorNeuron):
                     label=synapse.label,
                     difficulty=problem.difficulty,
                     number_of_nodes=synapse.number_of_nodes,
-                    adjacency_list=synapse.adjacency_list,
+                    adjacency_list=graph.adjacency_list,
                     encoded_matrix=synapse.encoded_matrix,
                     miner_uids=selected_uids,
                     miner_hotkeys=selected_miner_hotkeys,
