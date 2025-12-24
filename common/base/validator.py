@@ -247,7 +247,7 @@ class BaseValidatorNeuron(BaseNeuron):
         """
         Sets the validator weights to the metagraph hotkeys based on the scores it has received from the miners. The weights determine the trust and incentive level the validator assigns to miner nodes on the network.
         """
-        LAMBDA_WEIGHTS = 0.05
+        LAMBDA_WEIGHTS = 0.06
         # LAMBDA_WEIGHTS = 0.1
 
         # Check if self.scores contains any NaN values and log a warning if it does.
@@ -269,7 +269,7 @@ class BaseValidatorNeuron(BaseNeuron):
             normalized = (self.scores - min_val) / range_val
 
         weights = LAMBDA_WEIGHTS * normalized
-        weights[0] = 1.0 - LAMBDA_WEIGHTS
+        weights[0] = (1.0 - LAMBDA_WEIGHTS) * sum(normalized)
         uids = np.asarray(self.metagraph.uids, dtype=np.int64)
         bt.logging.debug("weights", weights)
         bt.logging.debug("uids", uids)
