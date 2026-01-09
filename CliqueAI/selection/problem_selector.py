@@ -21,7 +21,7 @@ class Problem(BaseModel):
 PROBLEMS = [
     Problem(
         label="general",
-        vertex_range=Range(min=90, max=100),
+        vertex_range=Range(min=690, max=700),
         edge_range=Range(min=0, max=max_int),
         difficulty=0.1,
     ),
@@ -36,14 +36,7 @@ PROBLEMS = [
         vertex_range=Range(min=490, max=500),
         edge_range=Range(min=0, max=max_int),
         difficulty=0.4,
-        # difficulty=0.3,
     ),
-    # Problem(
-    #     label="general",
-    #     vertex_range=Range(min=690, max=700),
-    #     edge_range=Range(min=0, max=max_int),
-    #     difficulty=0.4,
-    # )
 ]
 
 
