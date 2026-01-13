@@ -39,6 +39,8 @@ PROBLEMS = [
     ),
 ]
 
+TIME_LIMITS = [10, 15, 30]
+
 
 class ProblemSelector:
     def __init__(self, miner_selector: MinerSelector):
@@ -47,3 +49,7 @@ class ProblemSelector:
     def select_problem(self):
         selected_problem = random.choice(PROBLEMS)
         return selected_problem
+
+    def select_time_limit(self):
+        selected_time_limit = random.choice(TIME_LIMITS)
+        return selected_time_limit

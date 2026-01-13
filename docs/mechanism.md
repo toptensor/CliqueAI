@@ -30,13 +30,13 @@ Problems are classified according to the following attributes:
 -   **Label**
     -   General: general graph without guaranteed features.
 -   **Limit**
-    -   Time: Time constraints
+    -   Time: Time constraints. Currently, the time limit is sampled from ${10s, 15s, 30s}$.
 
 ## Difficulty Level
 
 ### Rationale
 
-We evaluate difficulty level, $d(p)$, of each problem on a scale from 0 to 1 using predefined rules. The rules consider graph scale, existing solutions (available on some special graphs), time limits, and current miner performance.
+We evaluate difficulty level, $d(p)$, of each problem on a scale from 0 to greater than 1 (i.e., unbounded above) using predefined rules. The rules consider graph scale, existing solutions (available on some special graphs), time limits, and current miner performance.
 
 We continuously refine this formula based on miner performance and internal experiments to make it more accurate.
 
@@ -155,7 +155,6 @@ To incentivize miners to develop general, robust, and diverse solvers, we expect
 -   Unique solvers should receive more credit when performance is similar.
 -   Performance should always carry more weight than uniqueness.
 -   For difficult problems, performance should be emphasized more than for easier problems, as they typically offer more room for improvement.
--   Since difficult problems appear less frequently, they should offer greater potential rewards to winners to prevent miners from undervaluing them.
 
 With these principles in mind, we aggregate $\omega$ and $\delta$ using:
 

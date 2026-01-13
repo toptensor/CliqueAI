@@ -114,6 +114,7 @@ class Validator(BaseValidatorNeuron):
 
         # Problem Selection
         problem = problem_selector.select_problem()
+        time_limit = problem_selector.select_time_limit()
         try:
             graph = await get_graph(
                 wallet=self.wallet,
@@ -160,7 +161,7 @@ class Validator(BaseValidatorNeuron):
             number_of_nodes=graph.number_of_nodes,
             adjacency_list=graph.adjacency_list,
             encoded_matrix=encoded_matrix,
-            timeout=self.config.forward.timeout,
+            timeout=time_limit,
         )
         bt.logging.info(f"Synapse UUID: {synapse.uuid}")
 
