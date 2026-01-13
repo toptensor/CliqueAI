@@ -176,13 +176,6 @@ def add_validator_args(cls, parser):
         default=60.0,
     )
 
-    parser.add_argument(
-        "--forward.timeout",
-        type=float,
-        help="The timeout for forwarding requests.",
-        default=30.0,
-    )
-
 
 def config(cls):
     """
