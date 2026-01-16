@@ -10,6 +10,7 @@ from common.base.consts import LAMBDA_URL
 async def get_graph(
     wallet: bt.Wallet,
     netuid: int,
+    time_limit: float,
     label: str | None = None,
     number_of_nodes_min: int | None = None,
     number_of_nodes_max: int | None = None,
@@ -29,6 +30,7 @@ async def get_graph(
         uuid=str(uuid.uuid4()),
         netuid=netuid,
         label=label,
+        time_limit=time_limit,
         number_of_nodes_min=number_of_nodes_min,
         number_of_nodes_max=number_of_nodes_max,
         number_of_edges_min=number_of_edges_min,

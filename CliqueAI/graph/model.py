@@ -7,6 +7,7 @@ class GraphPayload(BaseModel):
     hotkey: str
     uuid: str
     netuid: int
+    time_limit: float
     label: str | None = None
     number_of_nodes_min: int | None = None
     number_of_nodes_max: int | None = None
