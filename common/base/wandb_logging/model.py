@@ -15,6 +15,7 @@ class WandbRunLogData(BaseModel):
     uuid: str
     type: str
     label: str
+    time_limit: float
     difficulty: float
     number_of_nodes: int
     adjacency_list: list

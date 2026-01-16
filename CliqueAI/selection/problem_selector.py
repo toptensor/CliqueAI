@@ -39,7 +39,7 @@ PROBLEMS = [
     ),
 ]
 
-TIME_LIMITS = [10, 15, 30]
+TIME_LIMITS = [7.5, 10, 15, 30]
 
 
 class ProblemSelector:

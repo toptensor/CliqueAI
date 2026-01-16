@@ -15,7 +15,7 @@ from CliqueAI.scoring.clique_scoring import CliqueScoreCalculator
 from CliqueAI.selection.miner_selector import MinerSelector
 from CliqueAI.selection.problem_selector import ProblemSelector
 from CliqueAI.transport.axon_requester import AxonRequester
-from common.base import validator_int_version, validator_version
+from common.base import validator_version
 from common.base.validator import BaseValidatorNeuron
 from common.base.wandb_logging.model import WandbRunLogData
 
@@ -120,6 +120,7 @@ class Validator(BaseValidatorNeuron):
                 wallet=self.wallet,
                 netuid=self.config.netuid,
                 label=problem.label,
+                time_limit=time_limit,
                 number_of_nodes_min=problem.vertex_range.min,
                 number_of_nodes_max=problem.vertex_range.max,
                 number_of_edges_min=problem.edge_range.min,
@@ -129,7 +130,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.error(f"Error fetching graph: {e}")
             await asyncio.sleep(30)
             return
-        bt.logging.info(f"Selected problem: {problem}")
+        bt.logging.info(f"Selected problem: {problem}, Time limit: {time_limit}")
 
         # Shuffle the graph
         old_adjacency_list = graph.adjacency_list
@@ -222,6 +223,7 @@ class Validator(BaseValidatorNeuron):
                     uuid=synapse.uuid,
                     type=synapse.__class__.__name__,
                     label=synapse.label,
+                    time_limit=time_limit,
                     difficulty=problem.difficulty,
                     number_of_nodes=synapse.number_of_nodes,
                     adjacency_list=graph.adjacency_list,
