@@ -8,7 +8,7 @@ networkx==3.4.2
 pytest
 substrate-interface
 bittensor==9.10.0
-bittensor-cli
+bittensor-cli==9.17.0
 httpx
 scipy==1.15.3
 PyYAML==6.0.2
