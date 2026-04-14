@@ -243,12 +243,19 @@ class BaseValidatorNeuron(BaseNeuron):
             self.wandb_client.finish()
             bt.logging.info("WandB client stopped.")
 
+    def _sigmoid_weight(self, normalized_incentives: np.ndarray, midpoint: float, steepness: float) -> np.ndarray:
+        """
+        Apply sigmoid scaling to normalized incentives.
+        """
+        x = (normalized_incentives - midpoint) / steepness
+        sigmoid_incentives = 1 / (1 + np.exp(-x))
+        return sigmoid_incentives
+
     def set_weights(self):
         """
         Sets the validator weights to the metagraph hotkeys based on the scores it has received from the miners. The weights determine the trust and incentive level the validator assigns to miner nodes on the network.
         """
-        LAMBDA_WEIGHTS = 0.065
-        # LAMBDA_WEIGHTS = 0.1
+        LAMBDA_WEIGHTS = 0.5
 
         # Check if self.scores contains any NaN values and log a warning if it does.
         if np.isnan(self.scores).any():
@@ -268,8 +275,20 @@ class BaseValidatorNeuron(BaseNeuron):
         else:
             normalized = (self.scores - min_val) / range_val
 
-        weights = LAMBDA_WEIGHTS * normalized
-        weights[0] = (1.0 - LAMBDA_WEIGHTS) * sum(normalized)
+        # Apply sigmoid scaling to the normalized scores to determine the weights.
+        zero_mask = (normalized == 0)
+        nonzero_normalized = normalized[~zero_mask]
+        if nonzero_normalized.size > 0:
+            midpoint = np.median(nonzero_normalized)
+            steepness = max(np.percentile(nonzero_normalized, 75) - np.percentile(nonzero_normalized, 25), 0.1)  # IQR
+            sigmoid_weights = self._sigmoid_weight(normalized, midpoint=midpoint, steepness=steepness)
+            sigmoid_weights[zero_mask] = 0.0
+        else:
+            sigmoid_weights = normalized
+
+        # Combine the sigmoid weights with a lambda to determine the final weights.
+        weights = LAMBDA_WEIGHTS * sigmoid_weights
+        weights[0] = (1.0 - LAMBDA_WEIGHTS) * sum(sigmoid_weights)
         uids = np.asarray(self.metagraph.uids, dtype=np.int64)
         bt.logging.debug("weights", weights)
         bt.logging.debug("uids", uids)
