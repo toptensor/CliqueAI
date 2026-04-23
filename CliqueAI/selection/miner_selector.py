@@ -46,7 +46,6 @@ class MinerSelector:
 
         s_m = [
             self.snapshot.alpha_stakes[uid]
-            + self.snapshot.stakes_on_owner_validator[uid]
             for uid in self.miner_uids
         ]
         S = sum(s_m) / len(self.miner_uids)
