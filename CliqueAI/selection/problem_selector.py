@@ -36,7 +36,14 @@ PROBLEMS = [
         vertex_range=Range(min=690, max=700),
         edge_range=Range(min=0, max=max_int),
         difficulty=1,
+        # difficulty=0.6,
     ),
+    # Problem(
+    #     label="general",
+    #     vertex_range=Range(min=890, max=900),
+    #     edge_range=Range(min=0, max=max_int),
+    #     difficulty=0.8,
+    # ),
 ]
 
 TIME_LIMITS = [6, 7.5, 10, 15, 30]
