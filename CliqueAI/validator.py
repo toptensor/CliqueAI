@@ -56,24 +56,6 @@ class Validator(BaseValidatorNeuron):
             coldkeys = [
                 self.subtensor.get_hotkey_owner(hotkey) for hotkey in self.hotkeys
             ]
-            coldkey_to_hotkey_count = defaultdict(int)
-            for coldkey in coldkeys:
-                coldkey_to_hotkey_count[coldkey] += 1
-
-            coldkey_to_stake_on_owner = {}
-            for coldkey in set(coldkeys):
-                try:
-                    coldkey_to_stake_on_owner[coldkey] = self.subtensor.get_stake(
-                        coldkey, self.get_owner_hotkey(), netuid=self.config.netuid
-                    ).tao
-                except Exception as e:
-                    coldkey_to_stake_on_owner[coldkey] = 0
-                    continue
-
-            stakes_on_owner_validator = [
-                coldkey_to_stake_on_owner[ck] / coldkey_to_hotkey_count[ck]
-                for ck in coldkeys
-            ]
             self.snapshot = Snapshot(
                 netuid=self.config.netuid,
                 epoch_length=self.config.neuron.epoch_length,
@@ -83,7 +65,6 @@ class Validator(BaseValidatorNeuron):
                 hotkeys=self.hotkeys,
                 coldkeys=coldkeys,
                 alpha_stakes=self.metagraph.alpha_stake,
-                stakes_on_owner_validator=stakes_on_owner_validator,
             )
             bt.logging.info(
                 f"Snapshot resync completed in {time.time() - snapshot_time} seconds"

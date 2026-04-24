@@ -15,4 +15,3 @@ class Snapshot:
     hotkeys: list[str]
     coldkeys: list[str]
     alpha_stakes: npt.NDArray[np.int64]
-    stakes_on_owner_validator: npt.NDArray[np.int64]

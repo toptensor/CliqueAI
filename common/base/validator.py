@@ -8,6 +8,7 @@ from typing import List, Union
 
 import bittensor as bt
 import numpy as np
+from scipy.stats import rankdata
 from common.base import validator_int_version
 from common.base.middleware.bypass_axon_middleware import replace_axon_middleware
 from common.base.neuron import BaseNeuron
@@ -245,17 +246,22 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def _sigmoid_weight(self, normalized_incentives: np.ndarray, midpoint: float, steepness: float) -> np.ndarray:
         """
-        Apply sigmoid scaling to normalized incentives.
+        Apply sigmoid scaling to normalized incentives and down-weight by rank.
         """
         x = (normalized_incentives - midpoint) / steepness
         sigmoid_incentives = 1 / (1 + np.exp(-x))
+        num_miners = len(sigmoid_incentives)
+        if num_miners > 0:
+            ranks = rankdata(-sigmoid_incentives, method="max").astype(np.float32)
+            rank_multipliers = (num_miners - ranks + 1) / num_miners
+            sigmoid_incentives = sigmoid_incentives * rank_multipliers
         return sigmoid_incentives
 
     def set_weights(self):
         """
         Sets the validator weights to the metagraph hotkeys based on the scores it has received from the miners. The weights determine the trust and incentive level the validator assigns to miner nodes on the network.
         """
-        LAMBDA_WEIGHTS = 0.5
+        LAMBDA_WEIGHTS = 1.0
 
         # Check if self.scores contains any NaN values and log a warning if it does.
         if np.isnan(self.scores).any():
