@@ -71,6 +71,13 @@ def add_args(cls, parser):
     )
 
     parser.add_argument(
+        "--neuron.block_cache_ttl",
+        type=float,
+        help="Seconds to cache the current block. Set to 0 to disable block caching.",
+        default=12.0,
+    )
+
+    parser.add_argument(
         "--neuron.events_retention_size",
         type=str,
         help="Events retention size.",

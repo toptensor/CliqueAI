@@ -1,10 +1,11 @@
 import copy
+import time
 from abc import ABC, abstractmethod
 
 import bittensor as bt
 from common.base import base_version
 from common.utils.config import add_args, check_config, config
-from common.utils.misc import ttl_get_block
+
 
 class BaseNeuron(ABC):
     """
@@ -34,7 +35,18 @@ class BaseNeuron(ABC):
 
     @property
     def block(self):
-        return ttl_get_block(self)
+        block_cache_ttl = self.config.neuron.block_cache_ttl
+        if block_cache_ttl <= 0:
+            return self.subtensor.get_current_block()
+
+        now = time.time()
+        if (
+            not hasattr(self, "_cached_block")
+            or now - self._cached_block_time >= block_cache_ttl
+        ):
+            self._cached_block = self.subtensor.get_current_block()
+            self._cached_block_time = now
+        return self._cached_block
 
     def __init__(self, config=None):
         base_config = copy.deepcopy(config or BaseNeuron.config())
@@ -152,6 +164,9 @@ class BaseNeuron(ABC):
 
         # Check if enough epoch blocks have elapsed since the last epoch.
         if (self.block - self.last_set_weight) < (self.config.neuron.epoch_length / 2):
+            bt.logging.debug(
+                f"Not setting weights because only {self.block - self.last_set_weight} blocks have elapsed since the last time weights were set, which is less than half of the configured epoch length of {self.config.neuron.epoch_length} blocks."
+            )
             return False
 
         # Ensure it's past the midpoint of the current epoch.
@@ -159,6 +174,9 @@ class BaseNeuron(ABC):
             netuid=self.config.netuid, block=self.block
         )
         if subnet_info.blocks_since_epoch * 2 < self.config.neuron.epoch_length:
+            bt.logging.debug(
+                f"Not setting weights because we are only {subnet_info.blocks_since_epoch} blocks into the current epoch, which is less than half of the configured epoch length of {self.config.neuron.epoch_length} blocks."
+            )
             return False
         return True
 
