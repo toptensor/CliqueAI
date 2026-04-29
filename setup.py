@@ -1,11 +1,9 @@
 import codecs
 import os
-import pathlib
 import re
 from io import open
 from os import path
 
-from pkg_resources import parse_requirements
 from setuptools import find_packages, setup
 
 

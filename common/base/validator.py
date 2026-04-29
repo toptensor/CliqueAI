@@ -38,11 +38,13 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def __init__(self, config=None):
         super().__init__(config=config)
+        dendrite_cls = getattr(bt, "dendrite", None) or getattr(bt, "Dendrite", None)
+        axon_cls = getattr(bt, "axon", None) or getattr(bt, "Axon", None)
 
         # Save a copy of the hotkeys to local memory.
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
 
-        self.dendrite = bt.dendrite(wallet=self.wallet)
+        self.dendrite = dendrite_cls(wallet=self.wallet)
         bt.logging.info(f"Dendrite: {self.dendrite}")
 
         # Set up initial scoring weights for validation
@@ -54,7 +56,7 @@ class BaseValidatorNeuron(BaseNeuron):
         bt.logging.info("load_state()")
         self.load_state()
 
-        self.axon = bt.axon(
+        self.axon = axon_cls(
             wallet=self.wallet,
             config=self.config() if callable(self.config) else self.config,
         )
@@ -77,8 +79,9 @@ class BaseValidatorNeuron(BaseNeuron):
         """Serve axon to enable external connections."""
 
         bt.logging.info("serving ip to chain...")
+        axon_cls = getattr(bt, "axon", None) or getattr(bt, "Axon", None)
         try:
-            self.axon = bt.axon(wallet=self.wallet, config=self.config)
+            self.axon = axon_cls(wallet=self.wallet, config=self.config)
 
             try:
                 bt.logging.info(

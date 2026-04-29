@@ -149,6 +149,13 @@ def add_validator_args(cls, parser):
     )
 
     parser.add_argument(
+        "--neuron.min_steps_before_set_weights",
+        type=int,
+        help="Minimum number of steps after startup before setting weights.",
+        default=100,
+    )
+
+    parser.add_argument(
         "--neuron.ema_alpha",
         type=float,
         help="Exponential moving average alpha parameter, how much to add of the new observation.",
@@ -182,9 +189,16 @@ def config(cls):
     Returns the configuration object specific to this miner or validator after adding relevant arguments.
     """
     parser = argparse.ArgumentParser()
-    bt.wallet.add_args(parser)
-    bt.subtensor.add_args(parser)
+    wallet_cls = getattr(bt, "wallet", None) or getattr(bt, "Wallet", None)
+    subtensor_cls = getattr(bt, "subtensor", None) or getattr(bt, "Subtensor", None)
+    axon_cls = getattr(bt, "axon", None) or getattr(bt, "Axon", None)
+
+    wallet_cls.add_args(parser)
+    subtensor_cls.add_args(parser)
     bt.logging.add_args(parser)
-    bt.axon.add_args(parser)
+    axon_cls.add_args(parser)
     cls.add_args(parser)
-    return bt.config(parser)
+    config_builder = getattr(bt, "config", None)
+    if config_builder is not None:
+        return config_builder(parser)
+    return bt.Config(parser)

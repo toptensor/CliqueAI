@@ -2,13 +2,13 @@ starlette>=0.30.0
 pydantic>=2
 rich>=13
 pytest>=8
-numpy>=2.2.6
+numpy==2.2.6
 setuptools>=68
 networkx==3.4.2
 pytest
 substrate-interface
-bittensor==9.10.0
-bittensor-cli>=9.13.0
+async-substrate-interface==1.6.4
+bittensor==10.2.1
 httpx
 scipy==1.15.3
 PyYAML==6.0.2

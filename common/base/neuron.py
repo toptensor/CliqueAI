@@ -6,7 +6,6 @@ from common.base import base_version
 from common.utils.config import add_args, check_config, config
 from common.utils.misc import ttl_get_block
 
-
 class BaseNeuron(ABC):
     """
     Base class for Bittensor miners. This class is abstract and should be inherited by a subclass. It contains the core logic for all neurons; validators and miners.
@@ -42,7 +41,9 @@ class BaseNeuron(ABC):
         self.config = self.config()
         self.config.merge(base_config)
         self.check_config(self.config)
-
+        wallet_cls = getattr(bt, "wallet", None) or getattr(bt, "Wallet", None)
+        subtensor_cls = getattr(bt, "subtensor", None) or getattr(bt, "Subtensor", None)
+        
         # Set up logging with the provided configuration.
         bt.logging.set_config(config=self.config.logging)
 
@@ -56,8 +57,8 @@ class BaseNeuron(ABC):
         # These are core Bittensor classes to interact with the network.
         bt.logging.info("Setting up bittensor objects.")
 
-        self.wallet = bt.wallet(config=self.config)
-        self.subtensor = bt.subtensor(
+        self.wallet = wallet_cls(config=self.config)
+        self.subtensor = subtensor_cls(
             network=self.config.subtensor.network, config=self.config
         )
         self.metagraph = self.subtensor.metagraph(self.config.netuid)
@@ -132,19 +133,21 @@ class BaseNeuron(ABC):
         return True
 
     def should_set_weights(self) -> bool:
-        # Don't set weights on initialization.
-        if self.step == 0:
-            return False
-
-        # Don't set weights until after 100 steps.
-        if (self.step - self.init_step) < 100:
-            return False
-
         if self.config.neuron.disable_set_weights:
             return False
 
         # Don't set weights if you're a miner.
         if self.neuron_type == "MinerNeuron":
+            return False
+
+        # Don't set weights on initialization.
+        if self.step == 0:
+            return False
+
+        # Don't set weights until enough startup steps have passed.
+        if (
+            self.step - self.init_step
+        ) < self.config.neuron.min_steps_before_set_weights:
             return False
 
         # Check if enough epoch blocks have elapsed since the last epoch.
