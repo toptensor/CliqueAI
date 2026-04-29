@@ -11,7 +11,8 @@ class GraphCodec:
     """
     Provides graph encoding and decoding functionalities.
     1. adjacency_list <-> adjacency_matrix
-    2. adjacency_matrix <-> base92 encoded string (bitwise)
+    2. edge_list <-> adjacency_matrix
+    3. adjacency_matrix <-> base92 encoded string (bitwise)
     """
 
     def __init__(
@@ -47,6 +48,26 @@ class GraphCodec:
             neighbors = [j for j, v in enumerate(row) if v == 1]
             adj_list.append(neighbors)
         return adj_list
+    
+    @staticmethod
+    def edge_list_to_matrix(edge_list: list[list[int]], n: int) -> list[list[int]]:
+        """Convert edge list to adjacency matrix"""
+        adj_matrix = [[0] * n for _ in range(n)]
+        for u, v in edge_list:
+            adj_matrix[u][v] = 1
+            adj_matrix[v][u] = 1
+        return adj_matrix
+
+    @staticmethod
+    def matrix_to_edge_list(adj_matrix: list[list[int]]) -> list[list[int]]:
+        """Convert adjacency matrix to edge list"""
+        edge_list = []
+        n = len(adj_matrix)
+        for i in range(n):
+            for j in range(i + 1, n):
+                if adj_matrix[i][j] == 1:
+                    edge_list.append([i, j])
+        return edge_list
 
     # Base92 helpers
     def _min_digits_for_bits(self, r_bits: int) -> int:
