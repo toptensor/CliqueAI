@@ -10,8 +10,8 @@ class MinerSelector:
     ):
         self.current_block = current_block
         self.snapshot = snapshot
-        self.miner_weights_cache = {}  # difficulty -> weights mapping
         self.miner_uids = self._filter_validators()
+        self.reference_r = 1.5
 
     def _filter_validators(self) -> list[int]:
         """
@@ -31,37 +31,27 @@ class MinerSelector:
             uids.append(uid)
         return uids
 
-    def miner_weights(self, difficulty: float) -> np.ndarray:
+    def miner_selection_probabilities(self, difficulty: float) -> np.ndarray:
         """
-        Calculate the weights of miners based on their stake and the difficulty.
+        Calculate equal sampling probabilities for all miners.
 
         Args:
             difficulty (float): The difficulty threshold for sampling miners.
 
         Returns:
-            np.ndarray: An array of weights for each miner.
+            np.ndarray: An array of selection probabilities for each miner.
         """
-        if difficulty in self.miner_weights_cache:
-            return self.miner_weights_cache[difficulty]
+        if not self.miner_uids:
+            return np.array([])
 
-        s_m = [
-            self.snapshot.alpha_stakes[uid]
-            for uid in self.miner_uids
-        ]
-        S = sum(s_m) / len(self.miner_uids)
-        if S == 0:
-            x_m = np.array([1] * len(self.miner_uids))
-        else:
-            x_m = np.sqrt(1 + s_m / S)
-
+        x_m = np.sqrt(1 + self.reference_r)
         delta = x_m - difficulty - 0.5
         P = 1 - np.exp(-np.maximum(0, delta))
-        self.miner_weights_cache[difficulty] = P
-        return P
+        return np.full(len(self.miner_uids), P)
 
     def sample_miner_uids(self, difficulty: float) -> list[int]:
         """
-        Sample miners based on their stake weights and a given difficulty.
+        Sample miners using equal selection probabilities.
 
         Args:
             difficulty (float): The difficulty threshold for sampling miners.
@@ -69,7 +59,7 @@ class MinerSelector:
         Returns:
             list[int]: A list of selected miner UIDs.
         """
-        P = self.miner_weights(difficulty)
+        P = self.miner_selection_probabilities(difficulty)
 
         random_vals = np.random.rand(len(P))
         selected_mask = random_vals < P
