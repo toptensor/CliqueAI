@@ -19,7 +19,8 @@ The structured logging format is defined using a Pydantic model in [WandbRunLogD
 | Field               | Type              | Description                                                     |
 | ------------------- | ---------------- | ---------------------------------------------------------------- |
 | **label**           | str               | Problem category, e.g., general.                                |
-| **difficulty**      | float             | Problem difficulty in [0,1], derived from problem attributes.   |
+| **difficulty**      | float             | Difficulty assigned to the selected problem type.               |
+| **time_limit**      | float             | Time limit sent to miners, in seconds.                          |
 | **number_of_nodes** | int               | The number of vertices in the graph.                            |
 | **adjacency_list**  | list[list[int]]   | Adjacency list representation of the graph **after shuffling**. |
 | **encoded_matrix**  | str               | The base92 encoded adjacency matrix of the graph.               |

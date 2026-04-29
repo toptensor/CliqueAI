@@ -9,7 +9,7 @@ Four-stage autonomous mechanism for distributed problem solving
 Advanced AI algorithms curate complex graph problems from our distributed database. The system intelligently categorizes challenges by difficulty, graph structure, and computational requirements.
 
 ### Miner Selection
-Smart allocation engine matches problems to miners based on experience levels and historical performance. Stake-weighted distribution ensures optimal resource utilization across the network.
+Smart allocation engine filters eligible miners and samples each miner with the same difficulty-adjusted probability, keeping problem distribution fair while scaling participation by challenge difficulty.
 
 ### Scoring
 Dual-metric evaluation system assesses both solution optimality and algorithmic diversity. This approach rewards accuracy while encouraging innovative problem-solving methodologies.

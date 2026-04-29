@@ -30,7 +30,7 @@ Problems are classified according to the following attributes:
 -   **Label**
     -   General: general graph without guaranteed features.
 -   **Limit**
-    -   Time: Time constraints. Currently, the time limit is sampled from ${10s, 15s, 30s}$.
+    -   Time: Time constraints. Currently, the time limit is sampled from ${6s, 7.5s, 10s, 15s, 30s}$.
 
 ## Difficulty Level
 
@@ -42,12 +42,11 @@ We continuously refine this formula based on miner performance and internal expe
 
 ### Latest
 
-Currently, we have only 4 types of problems:
+Currently, we have 3 types of problems:
 
--   Easy (difficulty=0.1): general graph with $90≤|V|≤100$
 -   Medium (difficulty=0.2): general graph with $290≤|V|≤300$
--   Hard (difficulty=0.3): general graph with $490≤|V|≤500$
--   Very Hard (difficulty=0.4): general graph with $690≤|V|≤700$
+-   Hard (difficulty=0.4): general graph with $490≤|V|≤500$
+-   Very Hard (difficulty=1): general graph with $690≤|V|≤700$
 
 ## Selection Process
 
@@ -64,52 +63,31 @@ The validator retrieves a random problem of type $t$ from our database. **Each p
 
 # Miner Selection
 
-To lower the entry barrier for new participants, we assign experienced miners problems with higher frequency and difficulty.
+To lower the entry barrier for new participants, we sample eligible miners with equal probability for each problem. The probability is adjusted by problem difficulty.
 
-New miners can focus on basic problems during their initial participation and gradually receive more diverse and difficult problems as they demonstrate their computational ability.
-
-Since miners with higher historical rewards naturally have higher stake, we use alpha stake as a proxy for miner experience.
+Before sampling, the validator filters out validator nodes and recently updated miners. The remaining miners are eligible to receive the problem.
 
 In brief, miner selection includes the following steps:
 
-1.  Calculate each miner's alpha stake.
-2.  Sample miners to distribute the problem accordingly.
-
-Let's examine each step in detail.
-
-## Stake Calculation
-
-Miners can earn more by staking their alphas on validators, while the official validator benefits from greater impact to stabilize scoring quality.
-
-Our win-win proposal: we include a miner's stake on our validator when calculating their total miner stake.
-
-Here's how we calculate a miner's alpha stake:
-
--   Suppose a miner registers with coldkey=`C` and hotkey=`H`.
--   The amount of alpha that `C` stakes on `H` is `S_miner`.
--   The amount of alpha that `C` stakes on our validator is `S_validator`.
--   The number of miners registered by `C` is `N_miner`.
-
-The miner's alpha stake would be `S_miner` + `S_validator` / `N_miner`. This means the credit for alphas staked on our validator by a coldkey is divided equally among all its miners.
+1.  Filter out validator nodes and miners updated within the current epoch.
+2.  Calculate a difficulty-adjusted selection probability.
+3.  Independently sample each eligible miner with that same probability.
 
 ## Miner Sampling
 
-The probability that a miner $m$ receives a problem $p$, denoted as $P(m, p)$, depends on the miner's experience level, $x(m)$, and the problem's difficulty level, $d(p)$.
+The probability that an eligible miner receives a problem $p$, denoted as $P(p)$, depends only on the problem's difficulty level, $d(p)$, and a fixed reference parameter, $r_{ref}$.
 
-We calculate $x(m)$ using the miner's alpha stake, $s_m$, and the average of all miners' alpha stakes, $\overline{S}$:
+We use:
 
-$$ x(m) = \sqrt{1 + \frac{s_m}{\overline{S}}} $$
+$$ r_{ref} = 1.5 $$
 
-The probability is then determined by:
+$$ x = \sqrt{1 + r_{ref}} $$
 
-$$ P(m, p) = 1 - e^{-max(0, x(m)-d(p)-0.5)} $$
+The selection probability is:
 
-With this formula, miners with more experience receive both a greater number and variety of problems.
+$$ P(p) = 1 - e^{-max(0, x-d(p)-0.5)} $$
 
--   Newbie miners (with zero stake) only receive problems where $d(p) < 0.5$.
--   Average miners (with stake roughly equal to the average) can receive most problems where $d(p) < 0.914$.
--   Experienced miners receive not only more difficult problems but also more problems overall.
--   If all miners have no stakes, then $x(m):=1 \forall m \in M$
+Every eligible miner receives the same probability $P(p)$ for a given problem. Harder problems produce lower selection probabilities, while easier problems are distributed to more miners on average.
 
 # Scoring
 
