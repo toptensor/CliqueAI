@@ -104,15 +104,20 @@ def load_latest_validator_state(path: str) -> Tuple[int, np.ndarray, list[str]]:
         raise ValueError("No validator state found in the database.")
 
 
-def get_all_validator_state(path: str) -> list[Tuple[int, list[float], list[str]]]:
+def get_all_validator_state(
+    path: str,
+    num: int | None = None,
+) -> list[Tuple[int, list[float], list[str], list[int]]]:
     """
     Get all validator states from the database.
 
     Args:
         path (str): The path to the directory containing the database.
+        num (int | None): Optional number of latest states to return.
 
     Returns:
-        list[Tuple[int, list[float], list[str]]]: A list of tuples containing step, scores, and hotkeys.
+        list[Tuple[int, list[float], list[str], list[int]]]: A list of tuples
+        containing step, scores, hotkeys, and EMA step counts.
     """
     db_path = os.path.join(path, "validator_state.db")
     if not os.path.exists(db_path):
@@ -120,8 +125,21 @@ def get_all_validator_state(path: str) -> list[Tuple[int, list[float], list[str]
 
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("SELECT step, scores, hotkeys FROM validator_state")
+    if num is None:
+        cursor.execute(
+            "SELECT step, scores, hotkeys, ema_step_count "
+            "FROM validator_state ORDER BY step DESC"
+        )
+    else:
+        cursor.execute(
+            "SELECT step, scores, hotkeys, ema_step_count "
+            "FROM validator_state ORDER BY step DESC LIMIT ?",
+            (num,),
+        )
     rows = cursor.fetchall()
     conn.close()
 
-    return [(row[0], json.loads(row[1]), json.loads(row[2])) for row in rows]
+    return [
+        (row[0], json.loads(row[1]), json.loads(row[2]), json.loads(row[3]))
+        for row in rows
+    ]

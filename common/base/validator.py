@@ -483,21 +483,74 @@ class BaseValidatorNeuron(BaseNeuron):
                 "No previous validator state found. Starting from scratch."
             )
 
+    def _get_owner_hotkey(self) -> str:
+        if hasattr(self.subtensor, "get_subnet_owner_hotkey"):
+            try:
+                owner_hotkey = self.subtensor.get_subnet_owner_hotkey(
+                    netuid=self.config.netuid,
+                    block=self.block,
+                )
+                if owner_hotkey:
+                    return owner_hotkey
+            except TypeError:
+                try:
+                    owner_hotkey = self.subtensor.get_subnet_owner_hotkey(
+                        netuid=self.config.netuid
+                    )
+                    if owner_hotkey:
+                        return owner_hotkey
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
+        owner_hotkey = getattr(self.metagraph, "owner_hotkey", None)
+        if owner_hotkey:
+            return owner_hotkey
+
+        hotkeys = getattr(self.metagraph, "hotkeys", [])
+        if hotkeys:
+            return hotkeys[0]
+
+        raise ValueError("Unable to determine subnet owner hotkey.")
+
     async def get_validator_state(
         self,
         timestamp: float,
         owner_signature: str,
-    ) -> list[dict]:
+        num: int | None = None,
+    ) -> list[tuple[int, list[float], list[str], list[int]]]:
         bt.logging.info("Received request for validator state.")
         now = time.time()
         if abs(now - timestamp) > 60:
             bt.logging.warning("Request expired.")
             raise HTTPException(status_code=400, detail="Request expired.")
+        if num is not None and num <= 0:
+            raise HTTPException(status_code=400, detail="num must be greater than 0.")
 
-        if not verify_signature(
-            owner_signature, timestamp, self.metagraph.owner_hotkey
-        ):
+        try:
+            owner_hotkey = self._get_owner_hotkey()
+        except Exception as exc:
+            detail = (
+                "Failed to determine subnet owner hotkey: "
+                f"{type(exc).__name__}: {exc}"
+            )
+            bt.logging.error(detail)
+            raise HTTPException(status_code=500, detail=detail) from exc
+
+        if not verify_signature(owner_signature, timestamp, owner_hotkey):
             bt.logging.warning("Invalid owner signature.")
             raise HTTPException(status_code=403, detail="Invalid owner signature.")
 
-        return get_all_validator_state(path=self.config.neuron.full_path)
+        try:
+            return get_all_validator_state(
+                path=self.config.neuron.full_path,
+                num=num,
+            )
+        except Exception as exc:
+            detail = (
+                "Failed to load validator state: "
+                f"{type(exc).__name__}: {exc}"
+            )
+            bt.logging.error(detail)
+            raise HTTPException(status_code=500, detail=detail) from exc
