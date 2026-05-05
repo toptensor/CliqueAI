@@ -8,7 +8,6 @@ from typing import List, Union
 
 import bittensor as bt
 import numpy as np
-from scipy.stats import rankdata
 from common.base import validator_int_version
 from common.base.middleware.bypass_axon_middleware import replace_axon_middleware
 from common.base.neuron import BaseNeuron
@@ -30,6 +29,8 @@ class BaseValidatorNeuron(BaseNeuron):
     """
 
     neuron_type: str = "ValidatorNeuron"
+    POWER_TARGET_TOP_HALF_SHARE: float = 0.80
+    POWER_MAX_GAMMA: float = 32.0
 
     @classmethod
     def add_args(cls, parser: argparse.ArgumentParser):
@@ -249,16 +250,51 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def _sigmoid_weight(self, normalized_incentives: np.ndarray, midpoint: float, steepness: float) -> np.ndarray:
         """
-        Apply sigmoid scaling to normalized incentives and down-weight by rank.
+        Apply sigmoid scaling to normalized incentives.
         """
         x = (normalized_incentives - midpoint) / steepness
-        sigmoid_incentives = 1 / (1 + np.exp(-x))
-        num_miners = len(sigmoid_incentives)
-        if num_miners > 0:
-            ranks = rankdata(-sigmoid_incentives, method="max").astype(np.float32)
-            rank_multipliers = (num_miners - ranks + 1) / num_miners
-            sigmoid_incentives = sigmoid_incentives * rank_multipliers
-        return sigmoid_incentives
+        return 1 / (1 + np.exp(-x))
+
+    def _top_half_share(self, weights: np.ndarray, rank_scores: np.ndarray) -> float:
+        total = np.sum(weights)
+        if total <= 0:
+            return 0.0
+        order = np.argsort(-rank_scores)
+        top = order[: len(order) // 2]
+        return float(np.sum(weights[top]) / total)
+
+    def _power_weight(
+        self,
+        sigmoid_incentives: np.ndarray,
+        rank_scores: np.ndarray,
+        target_top_half_share: float,
+    ) -> tuple[np.ndarray, float]:
+        active = sigmoid_incentives > 0
+        if not np.any(active):
+            return np.zeros_like(sigmoid_incentives, dtype=np.float64), 0.0
+
+        def transform(gamma: float) -> np.ndarray:
+            weights = np.zeros_like(sigmoid_incentives, dtype=np.float64)
+            weights[active] = np.power(sigmoid_incentives[active], gamma)
+            return weights
+
+        lo = 0.0
+        max_gamma = self.POWER_MAX_GAMMA
+        hi = min(1.0, max_gamma)
+        while (
+            self._top_half_share(transform(hi), rank_scores) < target_top_half_share
+            and hi < max_gamma
+        ):
+            hi = min(hi * 2.0, max_gamma)
+
+        for _ in range(80):
+            mid = (lo + hi) / 2.0
+            if self._top_half_share(transform(mid), rank_scores) < target_top_half_share:
+                lo = mid
+            else:
+                hi = mid
+
+        return transform(hi), hi
 
     def set_weights(self):
         """
@@ -284,14 +320,22 @@ class BaseValidatorNeuron(BaseNeuron):
         else:
             normalized = (self.scores - min_val) / range_val
 
-        # Apply sigmoid scaling to the normalized scores to determine the weights.
+        # Apply sigmoid scaling with power scaling.
         zero_mask = (normalized == 0)
         nonzero_normalized = normalized[~zero_mask]
         if nonzero_normalized.size > 0:
             midpoint = np.median(nonzero_normalized)
             steepness = max(np.percentile(nonzero_normalized, 75) - np.percentile(nonzero_normalized, 25), 0.1)  # IQR
-            sigmoid_weights = self._sigmoid_weight(normalized, midpoint=midpoint, steepness=steepness)
-            sigmoid_weights[zero_mask] = 0.0
+            sigmoid_scores = self._sigmoid_weight(normalized, midpoint=midpoint, steepness=steepness)
+            sigmoid_scores[zero_mask] = 0.0
+            sigmoid_weights, power_gamma = self._power_weight(
+                sigmoid_scores,
+                normalized,
+                self.POWER_TARGET_TOP_HALF_SHARE,
+            )
+            bt.logging.debug(
+                f"Power weight gamma={power_gamma:.9f}, target_top_half_share={self.POWER_TARGET_TOP_HALF_SHARE:.3f}"
+            )
         else:
             sigmoid_weights = normalized
 
