@@ -23,13 +23,13 @@ PROBLEMS = [
         label="general",
         vertex_range=Range(min=290, max=300),
         edge_range=Range(min=100, max=max_int),
-        difficulty=0.2,
+        difficulty=0.6,
     ),
     Problem(
         label="general",
         vertex_range=Range(min=490, max=500),
         edge_range=Range(min=0, max=max_int),
-        difficulty=0.4,
+        difficulty=0.8,
     ),
     Problem(
         label="general",
