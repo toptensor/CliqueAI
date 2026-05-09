@@ -95,7 +95,7 @@ class Validator(BaseValidatorNeuron):
 
         # Problem Selection
         problem = problem_selector.select_problem()
-        time_limit = problem_selector.select_time_limit()
+        time_limit = problem_selector.select_time_limit(problem)
         try:
             graph = await get_graph(
                 wallet=self.wallet,
