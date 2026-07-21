@@ -5,10 +5,8 @@ pytest>=8
 numpy==2.2.6
 setuptools>=68
 networkx==3.4.2
-pytest
-substrate-interface
-async-substrate-interface==1.6.4
-bittensor==10.2.1
+async-substrate-interface==2.0.4
+bittensor==10.3.2
 httpx
 scipy==1.15.3
 PyYAML==6.0.2

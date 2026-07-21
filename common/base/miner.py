@@ -26,7 +26,6 @@ class BaseMinerNeuron(BaseNeuron):
 
     def __init__(self, config=None):
         super().__init__(config=config)
-        axon_cls = getattr(bt, "axon", None) or getattr(bt, "Axon", None)
 
         # Warn if allowing incoming requests from anyone.
         if not self.config.blacklist.force_validator_permit:
@@ -38,9 +37,9 @@ class BaseMinerNeuron(BaseNeuron):
                 "You are allowing non-registered entities to send requests to your miner. This is a security risk."
             )
         # The axon handles request processing, allowing validators to send this miner requests.
-        self.axon = axon_cls(
+        self.axon = bt.Axon(
             wallet=self.wallet,
-            config=self.config() if callable(self.config) else self.config,
+            config=self.config,
         )
 
         # Attach determiners which functions are called when servicing a request.

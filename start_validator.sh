@@ -1,25 +1,20 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -e
 
-VALIDATOR_NAME=validator-CliqueAI
+PROCESS_NAME="validator-CliqueAI"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-for arg in "$@"; do
-    VALIDATOR_ARGS="$VALIDATOR_ARGS $arg"
-done
+VENV_ROOT="$PROJECT_ROOT/.venvs/validator"
+VENV_DIR="$VENV_ROOT/$(date -u +%Y%m%d%H%M%S)-$$"
+VENV_PYTHON="$VENV_DIR/bin/python"
 
 cd "$PROJECT_ROOT"
+mkdir -p "$VENV_ROOT"
+python3.12 -m venv "$VENV_DIR"
+"$VENV_PYTHON" -m pip install -r requirements.txt
+"$VENV_PYTHON" -m pip install -e . --no-deps
 
-VENV_DIR="$PROJECT_ROOT/venv"
-if [ ! -d "$VENV_DIR" ]; then
-    python3 -m venv "$VENV_DIR"
-fi
+pm2 delete "$PROCESS_NAME" >/dev/null 2>&1 || true
+pm2 start "$VENV_PYTHON" --name "$PROCESS_NAME" --cwd "$PROJECT_ROOT" --interpreter none -- \
+    -m CliqueAI.validator "$@"
 
-source "$VENV_DIR/bin/activate"
-pip install -e .
-
-if pm2 list | grep -q "$VALIDATOR_NAME"; then
-    pm2 delete "$VALIDATOR_NAME" 2>/dev/null || true
-fi
-
-pm2 start python3 --name "$VALIDATOR_NAME" -- \
-    -m CliqueAI.validator \
-    $VALIDATOR_ARGS
+find "$VENV_ROOT" -mindepth 1 -maxdepth 1 ! -path "$VENV_DIR" -exec rm -rf -- {} +

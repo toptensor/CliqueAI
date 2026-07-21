@@ -196,16 +196,18 @@ def config(cls):
     Returns the configuration object specific to this miner or validator after adding relevant arguments.
     """
     parser = argparse.ArgumentParser()
-    wallet_cls = getattr(bt, "wallet", None) or getattr(bt, "Wallet", None)
-    subtensor_cls = getattr(bt, "subtensor", None) or getattr(bt, "Subtensor", None)
-    axon_cls = getattr(bt, "axon", None) or getattr(bt, "Axon", None)
-
-    wallet_cls.add_args(parser)
-    subtensor_cls.add_args(parser)
+    bt.Wallet.add_args(parser)
+    bt.Subtensor.add_args(parser)
     bt.logging.add_args(parser)
-    axon_cls.add_args(parser)
+    bt.Axon.add_args(parser)
     cls.add_args(parser)
-    config_builder = getattr(bt, "config", None)
-    if config_builder is not None:
-        return config_builder(parser)
-    return bt.Config(parser)
+
+    values = {}
+    for name, value in vars(parser.parse_args()).items():
+        target = values
+        parts = name.split(".")
+        for part in parts[:-1]:
+            target = target.setdefault(part, {})
+        target[parts[-1]] = value
+
+    return bt.Config(default=values)

@@ -29,9 +29,9 @@ class BaseNeuron(ABC):
     def config(cls):
         return config(cls)
 
-    subtensor: "bt.subtensor"
-    wallet: "bt.wallet"
-    metagraph: "bt.metagraph"
+    subtensor: "bt.Subtensor"
+    wallet: "bt.Wallet"
+    metagraph: "bt.Metagraph"
 
     @property
     def block(self):
@@ -49,12 +49,8 @@ class BaseNeuron(ABC):
         return self._cached_block
 
     def __init__(self, config=None):
-        base_config = copy.deepcopy(config or BaseNeuron.config())
-        self.config = self.config()
-        self.config.merge(base_config)
+        self.config = copy.deepcopy(config) if config is not None else self.config()
         self.check_config(self.config)
-        wallet_cls = getattr(bt, "wallet", None) or getattr(bt, "Wallet", None)
-        subtensor_cls = getattr(bt, "subtensor", None) or getattr(bt, "Subtensor", None)
         
         # Set up logging with the provided configuration.
         bt.logging.set_config(config=self.config.logging)
@@ -69,8 +65,8 @@ class BaseNeuron(ABC):
         # These are core Bittensor classes to interact with the network.
         bt.logging.info("Setting up bittensor objects.")
 
-        self.wallet = wallet_cls(config=self.config)
-        self.subtensor = subtensor_cls(
+        self.wallet = bt.Wallet(config=self.config)
+        self.subtensor = bt.Subtensor(
             network=self.config.subtensor.network, config=self.config
         )
         self.metagraph = self.subtensor.metagraph(self.config.netuid)
