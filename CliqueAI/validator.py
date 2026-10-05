@@ -20,7 +20,7 @@ from CliqueAI.transport.challenge_dispatcher import (
     dispatch_challenge,
     validate_commit_timeout,
 )
-from common.base import validator_version
+from common.base import cliqueai_version
 from common.base.validator import BaseValidatorNeuron
 from common.base.wandb_logging.model import WandbRunLogData
 
@@ -33,8 +33,6 @@ class Validator(BaseValidatorNeuron):
 
     This class provides reasonable default behavior for a validator such as keeping a moving average of the scores of the miners and using them to set weights at the end of each epoch. Additionally, the scores are reset for new hotkeys at the end of each epoch.
     """
-
-    validator_version = validator_version
 
     @classmethod
     def check_config(cls, config: "bt.Config"):
@@ -49,7 +47,7 @@ class Validator(BaseValidatorNeuron):
         super().__init__(config=config)
 
         if not self.config.wandb.off:
-            self.wandb_client.init(version=self.validator_version)
+            self.wandb_client.init(version=cliqueai_version)
 
         self.forward_interval = self.config.forward.interval
         self.owner_hotkey = None

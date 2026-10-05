@@ -38,7 +38,7 @@ with codecs.open(
     os.path.join(here, "common/base/__init__.py"), encoding="utf-8"
 ) as init_file:
     version_match = re.search(
-        r"^validator_version = ['\"]([^'\"]*)['\"]", init_file.read(), re.M
+        r"^cliqueai_version = ['\"]([^'\"]*)['\"]", init_file.read(), re.M
     )
     version_string = version_match.group(1)
 

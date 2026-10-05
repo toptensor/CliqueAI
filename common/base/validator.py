@@ -8,7 +8,7 @@ from typing import List, Union
 
 import bittensor as bt
 import numpy as np
-from common.base import validator_int_version
+from common.base import cliqueai_int_version
 from common.base.middleware.bypass_axon_middleware import replace_axon_middleware
 from common.base.neuron import BaseNeuron
 from common.base.utils.signature import verify_signature
@@ -70,7 +70,6 @@ class BaseValidatorNeuron(BaseNeuron):
         self.lock = asyncio.Lock()
         self.wandb_client = WandbClient(
             wallet=self.wallet,
-            base_version=self.base_version,
             netuid=self.config.netuid,
         )
 
@@ -351,7 +350,7 @@ class BaseValidatorNeuron(BaseNeuron):
             weights=weights,
             wait_for_finalization=False,
             wait_for_inclusion=True,
-            version_key=validator_int_version,
+            version_key=cliqueai_int_version,
         )
         if result is True:
             self.last_set_weight = self.block

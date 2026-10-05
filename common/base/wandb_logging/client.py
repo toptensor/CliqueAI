@@ -15,11 +15,10 @@ from common.base.wandb_logging.model import (
 
 
 class WandbClient:
-    def __init__(self, wallet: Wallet, base_version: str, netuid: int):
+    def __init__(self, wallet: Wallet, netuid: int):
         self.wallet = wallet
         self.netuid = netuid
         self.hotkey = wallet.hotkey.ss58_address
-        self.base_version = str(base_version)
         self.client = httpx.Client(base_url=LAMBDA_URL, timeout=httpx.Timeout(60))
         self.key = wallet.hotkey
         self.run_id = None
