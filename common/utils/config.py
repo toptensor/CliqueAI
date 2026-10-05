@@ -79,8 +79,8 @@ def add_args(cls, parser):
 
     parser.add_argument(
         "--neuron.events_retention_size",
-        type=str,
-        help="Events retention size.",
+        type=int,
+        help="Events log size, in bytes, before it rotates.",
         default=2 * 1024 * 1024 * 1024,  # 2 GB
     )
 
