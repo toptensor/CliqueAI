@@ -33,9 +33,14 @@ class BaseMinerNeuron(BaseNeuron):
             bt.logging.warning(
                 "You are allowing non-validators to send requests to your miner. This is a security risk."
             )
-        if self.config.blacklist.allow_non_registered:
+            if self.config.blacklist.allow_non_registered:
+                bt.logging.warning(
+                    "You are allowing non-registered entities to send requests to your miner. This is a security risk."
+                )
+        elif self.config.blacklist.allow_non_registered:
             bt.logging.warning(
-                "You are allowing non-registered entities to send requests to your miner. This is a security risk."
+                "Ignoring --blacklist.allow_non_registered: only hotkeys with a validator permit "
+                "may send requests. Pass --no-blacklist.force_validator_permit to change that."
             )
         # The axon handles request processing, allowing validators to send this miner requests.
         self.axon = bt.Axon(
@@ -221,7 +226,11 @@ class BaseMinerNeuron(BaseNeuron):
             return True, "Missing dendrite or hotkey"
 
         if synapse.dendrite.hotkey not in self.metagraph.hotkeys:
-            if self.config.blacklist.allow_non_registered:
+            # An unregistered hotkey cannot hold a validator permit.
+            if (
+                self.config.blacklist.allow_non_registered
+                and not self.config.blacklist.force_validator_permit
+            ):
                 return False, "Unregistered hotkey allowed"
             bt.logging.trace(
                 f"Blacklisting un-registered hotkey {synapse.dendrite.hotkey}"

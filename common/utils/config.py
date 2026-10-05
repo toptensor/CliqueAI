@@ -118,15 +118,21 @@ def add_miner_args(cls, parser):
 
     parser.add_argument(
         "--blacklist.force_validator_permit",
-        action="store_true",
-        help="If set, we will force incoming requests to have a permit.",
-        default=False,
+        action=argparse.BooleanOptionalAction,
+        help=(
+            "Only accept requests from hotkeys with a validator permit. "
+            "Use --no-blacklist.force_validator_permit to accept any registered hotkey."
+        ),
+        default=True,
     )
 
     parser.add_argument(
         "--blacklist.allow_non_registered",
         action="store_true",
-        help="If set, miners will accept queries from non registered entities. (Dangerous!)",
+        help=(
+            "If set, miners will accept queries from non registered entities. "
+            "Only applies with --no-blacklist.force_validator_permit. (Dangerous!)"
+        ),
         default=False,
     )
 
