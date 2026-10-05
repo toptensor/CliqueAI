@@ -190,6 +190,16 @@ def add_validator_args(cls, parser):
         default=60.0,
     )
 
+    parser.add_argument(
+        "--challenge.commit_timeout",
+        type=float,
+        help=(
+            "Transfer budget, in seconds, for the commit phase. Unrelated to the "
+            "problem's time limit. Must not exceed 60 seconds."
+        ),
+        default=30.0,
+    )
+
 
 def config(cls):
     """

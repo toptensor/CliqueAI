@@ -1,4 +1,6 @@
 import asyncio
+import json
+import time
 
 import aiohttp
 import bittensor as bt
@@ -7,10 +9,7 @@ MAX_CONTENT_LENGTH = 100 * 1024  # 100 KB
 
 
 class AxonRequester:
-    """
-    Sends requests to multiple axons asynchronously and collects responses.
-    Prevent miner timeouts in dendrite forward caused by slow response verification.
-    """
+    """Sends requests to multiple axons and collects their responses."""
 
     def __init__(self, session: aiohttp.ClientSession, dendrite: bt.Dendrite):
         self.session = session
@@ -39,47 +38,58 @@ class AxonRequester:
         return miner_synapses, requests_data
 
     async def _send_request(
-        self, url: str, headers: dict, body: dict, timeout: float
-    ) -> aiohttp.ClientResponse:
-        response = await self.session.post(
-            url, headers=headers, json=body, timeout=timeout
-        )
-        return response
+        self,
+        miner_synapse: bt.Synapse,
+        url: str,
+        headers: dict,
+        body: dict,
+        timeout: float,
+    ) -> bt.Synapse:
+        started = time.perf_counter()
+        try:
+            async with self.session.post(
+                url, headers=headers, json=body, timeout=timeout
+            ) as response:
+                miner_synapse = await self._process_response(miner_synapse, response)
+        except Exception as error:
+            miner_synapse = self.dendrite.process_error_message(
+                synapse=miner_synapse,
+                request_name=error.__class__.__name__,
+                exception=error,
+            )
+        miner_synapse.dendrite.process_time = time.perf_counter() - started
+        return miner_synapse
 
     async def _process_response(
         self, miner_synapse: bt.Synapse, response: aiohttp.ClientResponse
     ) -> bt.Synapse:
-        if isinstance(response, Exception):
-            miner_synapse = self.dendrite.process_error_message(
-                synapse=miner_synapse,
-                request_name=response.__class__.__name__,
-                exception=response,
-            )
-            return miner_synapse
-
-        # Check if the response is too large
-        if int(response.headers.get("Content-Length", 0)) > MAX_CONTENT_LENGTH:
-            miner_synapse = self.dendrite.process_error_message(
-                synapse=miner_synapse,
-                request_name=response.__class__.__name__,
-                exception=ValueError(
-                    f"Response too large: {response.headers.get('Content-Length')} bytes"
-                ),
-            )
-            return miner_synapse
-
         try:
-            json_response = await response.json()
+            json_response = await self._read_json(response)
             self.dendrite.process_server_response(
                 response, json_response, miner_synapse
             )
-        except Exception as e:
+        except Exception as error:
             miner_synapse = self.dendrite.process_error_message(
                 synapse=miner_synapse,
                 request_name=response.__class__.__name__,
-                exception=e,
+                exception=error,
             )
         return miner_synapse
+
+    async def _read_json(self, response: aiohttp.ClientResponse) -> dict:
+        if (
+            response.content_length is not None
+            and response.content_length > MAX_CONTENT_LENGTH
+        ):
+            raise ValueError(f"Response too large: {response.content_length} bytes")
+
+        content = bytearray()
+        async for chunk in response.content.iter_chunked(16 * 1024):
+            if len(content) + len(chunk) > MAX_CONTENT_LENGTH:
+                response.close()
+                raise ValueError("Response exceeds 100 KB")
+            content.extend(chunk)
+        return json.loads(content)
 
     async def forward(
         self, synapse: bt.Synapse, axons: list[bt.AxonInfo]
@@ -87,14 +97,9 @@ class AxonRequester:
         miner_synapses, requests_data = self._prepare_requests(synapse, axons)
         if not requests_data:
             return []
-        responses = await asyncio.gather(
-            *[self._send_request(**req) for req in requests_data],
-            return_exceptions=True,
-        )
-        miner_synapses = await asyncio.gather(
+        return await asyncio.gather(
             *[
-                self._process_response(miner_synapse, response)
-                for miner_synapse, response in zip(miner_synapses, responses)
+                self._send_request(miner_synapse, **request)
+                for miner_synapse, request in zip(miner_synapses, requests_data)
             ]
         )
-        return miner_synapses

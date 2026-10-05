@@ -8,13 +8,18 @@ from collections import defaultdict
 import aiohttp
 import bittensor as bt
 from CliqueAI.chain.snapshot import Snapshot
+from CliqueAI.commit_reveal import seal
 from CliqueAI.graph.client import get_graph
 from CliqueAI.graph.codec import GraphCodec
-from CliqueAI.protocol import MaximumCliqueOfLambdaGraph
+from CliqueAI.protocol import MaximumCliqueSealedGraph
 from CliqueAI.scoring.clique_scoring import CliqueScoreCalculator
 from CliqueAI.selection.miner_selector import MinerSelector
 from CliqueAI.selection.problem_selector import ProblemSelector
 from CliqueAI.transport.axon_requester import AxonRequester
+from CliqueAI.transport.challenge_dispatcher import (
+    dispatch_challenge,
+    validate_commit_timeout,
+)
 from common.base import validator_version
 from common.base.validator import BaseValidatorNeuron
 from common.base.wandb_logging.model import WandbRunLogData
@@ -30,6 +35,15 @@ class Validator(BaseValidatorNeuron):
     """
 
     validator_version = validator_version
+
+    @classmethod
+    def check_config(cls, config: "bt.Config"):
+        # Fail at startup instead of raising on every forward() later.
+        try:
+            validate_commit_timeout(config.challenge.commit_timeout)
+        except (TypeError, ValueError) as error:
+            raise ValueError(f"challenge.commit_timeout is invalid: {error}") from error
+        super().check_config(config)
 
     def __init__(self, config=None):
         super().__init__(config=config)
@@ -113,39 +127,54 @@ class Validator(BaseValidatorNeuron):
             return
         bt.logging.info(f"Selected problem: {problem}, Time limit: {time_limit}")
 
-        # Shuffle the graph
-        old_adjacency_list = graph.adjacency_list
-        old_vertices = list(range(graph.number_of_nodes))
-        new_vertices = copy.deepcopy(old_vertices)
-        random.shuffle(new_vertices)
-        vertex_map = dict(zip(old_vertices, new_vertices))
-        bt.logging.debug(f"Vertex mapping (old -> new): {vertex_map}")
+        try:
+            if not graph.uuid or len(graph.uuid) > 64:
+                raise ValueError("invalid challenge uuid")
+            if not (
+                problem.vertex_range.min
+                <= graph.number_of_nodes
+                <= problem.vertex_range.max
+            ):
+                raise ValueError(f"invalid node count: {graph.number_of_nodes}")
+            if len(graph.adjacency_list) != graph.number_of_nodes:
+                raise ValueError("adjacency list length does not match node count")
+            if any(
+                type(neighbor) is not int
+                or neighbor < 0
+                or neighbor >= graph.number_of_nodes
+                or neighbor == node
+                for node, neighbors in enumerate(graph.adjacency_list)
+                for neighbor in neighbors
+            ):
+                raise ValueError("adjacency list contains an invalid neighbor")
 
-        new_adjacency_list = [[] for _ in range(graph.number_of_nodes)]
-        for u in range(graph.number_of_nodes):
-            new_u = vertex_map[u]
-            mapped_neighbors = [vertex_map[v] for v in old_adjacency_list[u]]
-            new_adjacency_list[new_u] = sorted(mapped_neighbors)
-        graph.adjacency_list = new_adjacency_list
+            # Shuffle the graph
+            old_vertices = list(range(graph.number_of_nodes))
+            new_vertices = copy.deepcopy(old_vertices)
+            random.shuffle(new_vertices)
+            vertex_map = dict(zip(old_vertices, new_vertices))
+            bt.logging.debug(f"Vertex mapping (old -> new): {vertex_map}")
 
-        # Encode the graph
-        adj_matrix = graph_codec.list_to_matrix(
-            graph.adjacency_list, graph.number_of_nodes
-        )
-        encoded_matrix = graph_codec.encode_matrix(
-            adj_matrix
-        )
+            new_adjacency_list = [[] for _ in range(graph.number_of_nodes)]
+            for u in range(graph.number_of_nodes):
+                new_u = vertex_map[u]
+                mapped_neighbors = [vertex_map[v] for v in graph.adjacency_list[u]]
+                new_adjacency_list[new_u] = sorted(mapped_neighbors)
+            graph.adjacency_list = new_adjacency_list
 
-        # Synapse
-        synapse = MaximumCliqueOfLambdaGraph(
-            uuid=graph.uuid,
-            label=graph.label,
-            number_of_nodes=graph.number_of_nodes,
-            adjacency_list=graph.adjacency_list,
-            encoded_matrix=encoded_matrix,
-            timeout=time_limit,
-        )
-        bt.logging.info(f"Synapse UUID: {synapse.uuid}")
+            # Encode the graph
+            adj_matrix = graph_codec.list_to_matrix(
+                graph.adjacency_list, graph.number_of_nodes
+            )
+            encoded_matrix = graph_codec.encode_matrix(adj_matrix)
+        except (KeyError, TypeError, ValueError) as error:
+            bt.logging.error(f"Invalid graph challenge: {error}")
+            await asyncio.sleep(30)
+            return
+
+        # Seal the graph
+        sealed = seal(graph.uuid, encoded_matrix)
+        bt.logging.info(f"Challenge UUID: {graph.uuid}")
 
         # Miner Selection
         selected_uids = miner_selector.sample_miner_uids(difficulty=problem.difficulty)
@@ -156,12 +185,15 @@ class Validator(BaseValidatorNeuron):
         async with aiohttp.ClientSession(
             connector=aiohttp.TCPConnector(limit=256)
         ) as session:
-            axon_requester = AxonRequester(session=session, dendrite=self.dendrite)
-            responses = await axon_requester.forward(
-                synapse=synapse,
+            miners = await dispatch_challenge(
+                axon_requester=AxonRequester(session=session, dendrite=self.dendrite),
+                sealed=sealed,
+                uuid=graph.uuid,
                 axons=axons,
+                time_limit=time_limit,
+                commit_timeout=self.config.challenge.commit_timeout,
             )
-        responses = [response.deserialize() for response in responses]
+        responses = [miner.clique for miner in miners]
 
         # Log the results for monitoring purposes.
         bt.logging.info(f"Received responses: {responses}")
@@ -201,14 +233,17 @@ class Validator(BaseValidatorNeuron):
             self.wandb_client.log(
                 WandbRunLogData(
                     timestamp=time.time(),
-                    uuid=synapse.uuid,
-                    type=synapse.__class__.__name__,
-                    label=synapse.label,
+                    uuid=graph.uuid,
+                    type=MaximumCliqueSealedGraph.__name__,
+                    label=graph.label,
                     time_limit=time_limit,
                     difficulty=problem.difficulty,
-                    number_of_nodes=synapse.number_of_nodes,
+                    number_of_nodes=graph.number_of_nodes,
                     adjacency_list=graph.adjacency_list,
-                    encoded_matrix=synapse.encoded_matrix,
+                    encoded_matrix=encoded_matrix,
+                    challenge_digest=sealed.digest,
+                    challenge_sealed_matrix=sealed.payload,
+                    challenge_key=sealed.key,
                     miner_uids=selected_uids,
                     miner_hotkeys=selected_miner_hotkeys,
                     miner_coldkeys=selected_miner_coldkeys,
