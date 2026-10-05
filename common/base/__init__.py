@@ -1,4 +1,4 @@
-cliqueai_version = "0.0.17"
+cliqueai_version = "0.0.18"
 
 
 def _version_to_int(version_str: str) -> int:
