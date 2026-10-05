@@ -1,7 +1,7 @@
 
 # Overview
 
-A problem distribution includes 4 steps:
+A problem distribution includes 5 steps:
 
 1.  **Problem Selection**
     The validator selects a problem from the database.
@@ -9,10 +9,13 @@ A problem distribution includes 4 steps:
 2.  **Miner Selection**
     The validator selects miners to receive the problem.
 
-3.  **Scoring**
+3.  **Challenge Distribution**
+    The validator delivers the problem to the selected miners and collects their solutions.
+
+4.  **Scoring**
     The validator evaluates miner solutions.
 
-4.  **Weight Setting**
+5.  **Weight Setting**
     The validator modifies miner weights.
 
 
@@ -88,6 +91,44 @@ The selection probability is:
 $$ P(p) = 1 - e^{-max(0, x-d(p)-0.5)} $$
 
 Every eligible miner receives the same probability $P(p)$ for a given problem. Harder problems produce lower selection probabilities, while easier problems are distributed to more miners on average.
+
+# Challenge Distribution
+
+Once a problem and a set of miners are chosen, the validator delivers the problem and collects the solutions. How it delivers decides what the time limit measures.
+
+## Rationale
+
+The time limit is meant to bound how long a miner may search. If the problem and the solution travel together, the limit also has to cover the transfer, and the two compete: every second spent receiving the graph is a second not spent searching. Bandwidth is then rewarded as though it were compute, and the larger the problem the stronger that effect.
+
+Delivering the problem before the clock starts removes the coupling, provided a miner cannot read what it has been given until the validator allows it.
+
+## Commit-Reveal
+
+Each problem is distributed in two rounds.
+
+1.  **Commit**
+    The validator sends every selected miner the problem in sealed form, under a transfer budget of its own. A miner may prepare, but cannot search: the sealed problem is unreadable without a key the validator still holds.
+
+2.  **Reveal**
+    The validator releases the key to all selected miners concurrently. The signed solve budget starts when a miner handles this request.
+
+A miner's clock therefore starts when the key arrives rather than when the transfer began, and a key is small enough that delivering it costs the same for everyone. The search budget no longer pays for the problem transfer; only the small, uniform reveal round trip still rides on the miner's link, inside the solve budget.
+
+Commit responses do not gate the reveal: every selected miner receives both rounds. A miner that did not retain the sealed problem returns an empty solution, which scores nothing.
+
+## Seal
+
+Sealing must not reintroduce the cost it removes, so the seal is a stream cipher over the same alphabet the graph is encoded in. A sealed problem is exactly as long as the plaintext, and the commit round transfers no more than a single-shot delivery would.
+
+The commit also publishes a hash commitment to the problem. A miner verifies it after unsealing, which makes the released key binding: it can only open the sealed problem onto the graph that was committed to, and every failure, whether a wrong key, a corrupted transfer, or a disagreement over the construction itself, is caught by that one check.
+
+Keys are drawn fresh for each problem, never reused, and withheld until reveal. After scoring, the validator logs the plaintext graph, sealed payload, commitment, and revealed key so the round can be replayed.
+
+The commitment is published alongside it. Because the same value is sent to the miners and recorded in the log, and because a miner only answers once the revealed key opens the sealed problem onto that commitment, the record can be checked against what was actually distributed: a validator that scores and publishes a problem other than the one it handed out no longer agrees with the miners it handed it to.
+
+## Fairness
+
+For each miner the validator measures the transfer round and the search round separately, so the claim that the time limit no longer pays for transfer is observed rather than assumed. Both measurements stay with the validator: how quickly a miner answers is not disclosed to the other miners.
 
 # Scoring
 
