@@ -104,6 +104,43 @@ def load_latest_validator_state(path: str) -> Tuple[int, np.ndarray, list[str]]:
         raise ValueError("No validator state found in the database.")
 
 
+def reset_validator_state_once(
+    path: str,
+    version: str,
+    extra_files: tuple[str, ...] = (),
+) -> list[str]:
+    """
+    Move the saved validator state aside unless it has been reset before.
+
+    The reset writes a marker file, so it only happens on the first start of a
+    release that has it. Later restarts and upgrades keep the saved state.
+
+    Args:
+        path (str): The path to the directory containing the database.
+        version (str): The running version, recorded in the marker and backup names.
+        extra_files (tuple[str, ...]): Other state files to clear along with the database.
+
+    Returns:
+        list[str]: The backup paths of the state files that were moved aside.
+    """
+    marker_path = os.path.join(path, "score_reset_version")
+    if os.path.exists(marker_path):
+        return []
+
+    backup_paths = []
+    for file_name in ("validator_state.db", *extra_files):
+        state_path = os.path.join(path, file_name)
+        if os.path.exists(state_path):
+            backup_path = f"{state_path}.pre-{version}"
+            os.replace(state_path, backup_path)
+            backup_paths.append(backup_path)
+
+    # Write the marker last: a crash before this point only repeats the reset.
+    with open(marker_path, "w") as marker:
+        marker.write(version)
+    return backup_paths
+
+
 def get_all_validator_state(
     path: str,
     num: int | None = None,

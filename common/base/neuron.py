@@ -3,7 +3,6 @@ import time
 from abc import ABC, abstractmethod
 
 import bittensor as bt
-from common.base import base_version
 from common.utils.config import add_args, check_config, config
 
 
@@ -15,7 +14,6 @@ class BaseNeuron(ABC):
     """
 
     neuron_type: str = "BaseNeuron"
-    base_version: str = base_version
 
     @classmethod
     def check_config(cls, config: "bt.Config"):

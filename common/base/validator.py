@@ -8,13 +8,14 @@ from typing import List, Union
 
 import bittensor as bt
 import numpy as np
-from common.base import validator_int_version
+from common.base import cliqueai_int_version, cliqueai_version
 from common.base.middleware.bypass_axon_middleware import replace_axon_middleware
 from common.base.neuron import BaseNeuron
 from common.base.utils.signature import verify_signature
 from common.base.utils.state_storage import (
     get_all_validator_state,
     load_latest_validator_state,
+    reset_validator_state_once,
     save_validator_state,
 )
 from common.base.wandb_logging.client import WandbClient
@@ -70,7 +71,6 @@ class BaseValidatorNeuron(BaseNeuron):
         self.lock = asyncio.Lock()
         self.wandb_client = WandbClient(
             wallet=self.wallet,
-            base_version=self.base_version,
             netuid=self.config.netuid,
         )
 
@@ -351,7 +351,7 @@ class BaseValidatorNeuron(BaseNeuron):
             weights=weights,
             wait_for_finalization=False,
             wait_for_inclusion=True,
-            version_key=validator_int_version,
+            version_key=cliqueai_int_version,
         )
         if result is True:
             self.last_set_weight = self.block
@@ -464,6 +464,16 @@ class BaseValidatorNeuron(BaseNeuron):
     def load_state(self):
         """Loads the state of the validator."""
         bt.logging.info("Loading validator state.")
+
+        backup_paths = reset_validator_state_once(
+            path=self.config.neuron.full_path,
+            version=cliqueai_version,
+        )
+        if backup_paths:
+            bt.logging.warning(
+                "Cleared the saved validator state; every miner score restarts "
+                f"from zero. Previous state moved to: {', '.join(backup_paths)}"
+            )
 
         try:
             step, ema_scores, hotkeys, ema_step_count = load_latest_validator_state(

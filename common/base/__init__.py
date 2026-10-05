@@ -1,5 +1,4 @@
-base_version = "0.0.17"
-validator_version = "0.0.17"
+cliqueai_version = "0.0.18"
 
 
 def _version_to_int(version_str: str) -> int:
@@ -10,5 +9,4 @@ def _version_to_int(version_str: str) -> int:
     return (10000 * major) + (100 * minor) + patch
 
 
-base_int_version = _version_to_int(base_version)
-validator_int_version = _version_to_int(validator_version)
+cliqueai_int_version = _version_to_int(cliqueai_version)

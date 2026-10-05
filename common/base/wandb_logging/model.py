@@ -20,6 +20,9 @@ class WandbRunLogData(BaseModel):
     number_of_nodes: int
     adjacency_list: list
     encoded_matrix: str
+    challenge_digest: str
+    challenge_sealed_matrix: str
+    challenge_key: str
     miner_uids: list
     miner_hotkeys: list
     miner_coldkeys: list

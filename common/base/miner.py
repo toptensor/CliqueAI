@@ -7,6 +7,7 @@ import typing
 from typing import Union
 
 import bittensor as bt
+from bittensor.core.errors import NotVerifiedException
 from common.base.neuron import BaseNeuron
 from common.utils.autoupdate import update_repo_if_needed
 from common.utils.config import add_miner_args
@@ -32,9 +33,14 @@ class BaseMinerNeuron(BaseNeuron):
             bt.logging.warning(
                 "You are allowing non-validators to send requests to your miner. This is a security risk."
             )
-        if self.config.blacklist.allow_non_registered:
+            if self.config.blacklist.allow_non_registered:
+                bt.logging.warning(
+                    "You are allowing non-registered entities to send requests to your miner. This is a security risk."
+                )
+        elif self.config.blacklist.allow_non_registered:
             bt.logging.warning(
-                "You are allowing non-registered entities to send requests to your miner. This is a security risk."
+                "Ignoring --blacklist.allow_non_registered: only hotkeys with a validator permit "
+                "may send requests. Pass --no-blacklist.force_validator_permit to change that."
             )
         # The axon handles request processing, allowing validators to send this miner requests.
         self.axon = bt.Axon(
@@ -48,6 +54,7 @@ class BaseMinerNeuron(BaseNeuron):
             forward_fn=self.forward,
             blacklist_fn=self.blacklist,
             priority_fn=self.priority,
+            verify_fn=self.verify,
         )
         bt.logging.info(f"Axon created: {self.axon}")
 
@@ -178,6 +185,11 @@ class BaseMinerNeuron(BaseNeuron):
     async def forward(self, synapse: bt.Synapse) -> bt.Synapse:
         return synapse
 
+    async def verify(self, synapse: bt.Synapse) -> None:
+        if synapse.dendrite is None or not synapse.dendrite.signature:
+            raise NotVerifiedException("Missing request signature", synapse=synapse)
+        await self.axon.default_verify(synapse)
+
     async def blacklist(self, synapse: bt.Synapse) -> typing.Tuple[bool, str]:
         """
         Determines whether an incoming request should be blacklisted and thus ignored. Your implementation should
@@ -213,17 +225,19 @@ class BaseMinerNeuron(BaseNeuron):
             bt.logging.warning("Received a request without a dendrite or hotkey.")
             return True, "Missing dendrite or hotkey"
 
-        uid = self.metagraph.hotkeys.index(synapse.dendrite.hotkey)
-        if (
-            not self.config.blacklist.allow_non_registered
-            and synapse.dendrite.hotkey not in self.metagraph.hotkeys
-        ):
-            # Ignore requests from un-registered entities.
+        if synapse.dendrite.hotkey not in self.metagraph.hotkeys:
+            # An unregistered hotkey cannot hold a validator permit.
+            if (
+                self.config.blacklist.allow_non_registered
+                and not self.config.blacklist.force_validator_permit
+            ):
+                return False, "Unregistered hotkey allowed"
             bt.logging.trace(
                 f"Blacklisting un-registered hotkey {synapse.dendrite.hotkey}"
             )
             return True, "Unrecognized hotkey"
 
+        uid = self.metagraph.hotkeys.index(synapse.dendrite.hotkey)
         if self.config.blacklist.force_validator_permit:
             # If the config is set to force validator permit, then we should only allow requests from validators.
             if not self.metagraph.validator_permit[uid]:
@@ -259,6 +273,8 @@ class BaseMinerNeuron(BaseNeuron):
         """
         if synapse.dendrite is None or synapse.dendrite.hotkey is None:
             bt.logging.warning("Received a request without a dendrite or hotkey.")
+            return 0.0
+        if synapse.dendrite.hotkey not in self.metagraph.hotkeys:
             return 0.0
 
         caller_uid = self.metagraph.hotkeys.index(
