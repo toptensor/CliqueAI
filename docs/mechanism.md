@@ -190,3 +190,7 @@ $$ y_t = \alpha f(m, p) + (1 - \alpha)y_{t-1} $$
 $$ \hat{y}_t = \frac{y_t}{1 - (1 - \alpha)^t} $$
 
 with $\alpha=0.01$, which means half-life of each sample is about 69 samples.
+
+## Score Reset
+
+A validator clears the ratings it has saved once, on its first start on v0.0.18 or later, so every miner restarts from zero under commit-reveal distribution, where the time limit no longer pays for the problem transfer. The previous state is kept with a `.pre-<version>` suffix in the validator's state directory (`neuron.full_path`), and a `score_reset_version` file there records the reset. Later restarts and upgrades keep the ratings.
